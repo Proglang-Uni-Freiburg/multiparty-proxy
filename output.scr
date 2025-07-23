@@ -1,0 +1,27 @@
+module Example;
+
+global protocol Negotiate(role Consumer as C, role Producer as P)
+{
+	propose(int) from C to P;
+	rec X {
+		choice at P
+		{
+			accept() from P to C;
+			confirm() from C to P;
+		} or {
+			reject() from P to C;
+		} or {
+			propose(int) from P to C;
+			choice at C
+			{
+				accept() from C to P;
+				confirm() from P to C;
+			} or {
+				reject() from C to P;
+			} or {
+				propose() from C to P;
+				continue X;
+			}
+		}
+	}
+}

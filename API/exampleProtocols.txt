@@ -1,0 +1,44 @@
+# first example
+
+protocol PurchaseGoods (role Buyer) {
+ Buyer introduces Seller;
+ Order from Buyer to Seller;
+ ....
+}
+
+protocol PurchaseGoods(role Buyer, role Seller) {
+ ....
+}
+
+# second example
+
+global protocol Bookstore
+    (role Sell, role Buy1, role Buy2) {
+  book(string) from Buy1 to Sell;
+  book(int) from Sell to Buy1;
+  quote(int) from Buy1 to Buy2;
+  choice at Buy2 {
+    agree(string) from Buy2 to Buy1, Sell;
+    transfer(int) from Buy1 to Sell;
+    transfer(int) from Buy2 to Sell;
+  } or {
+    quit(string) from Buy2 to Buy1, Sell;
+  }
+ }
+
+# my try
+
+# try one no references to previous actions
+global protocol Airport
+    (role Plane, role CargoControl, role ControlTower, role PassportControl) {
+  passengersIn(bool) from PassportControl to Plane;
+  choice at Plane { # here plane checks if bool True or False; if True continue; or maybe can send int of how many passengers pr smthng.
+    
+  } or {
+    quit()
+  }
+   
+}
+# technically should quit all of them? or quit
+
+# try two references to previous actions
