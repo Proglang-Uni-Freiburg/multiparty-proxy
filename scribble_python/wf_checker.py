@@ -1,12 +1,21 @@
 # scribble_tools.py
 import sys
 from pathlib import Path
-from src.scribble.main import main as _scribble_main
 
-# adjust these to match your layout
-ROOT         = Path(__file__).parent
-PARSER_DIR   = ROOT / "run"    / "parser"
-SCRIBBLE_SRC = ROOT / "src"    / "scribble"
+# Set project root as two levels up from this file
+
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "scribble_python" / "src"
+PARSER_DIR = SRC / "run" / "parser"
+SCRIBBLE_SRC = SRC / "scribble"
+
+# Add src to sys.path so you can import scribble.main
+sys.path.insert(0, str(SRC))
+
+from scribble.main import main as _scribble_main
+
+# Add src to sys.path so you can import scribble.main
+sys.path.insert(0, str(SRC))
 
 def check_well_formedness(scr_path: str, extra_import_paths=None) -> None:
     """

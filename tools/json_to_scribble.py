@@ -1,9 +1,23 @@
 import json
+import sys
+import os
 
-def json_to_scribble(proto):
+def json_to_scribble_func(proto):
     lines = []
-    lines.append(f"module Example;")
+    # Use protocol name as module name
+    module_name = proto["protocol"]
+    lines.append(f"module {module_name};")
     lines.append("")
+
+     # Add builtin type declarations
+    builtin_types = [
+        'type <builtin> "int" from "builtin" as int;',
+        'type <builtin> "string" from "builtin" as string;',
+        'type <builtin> "bool" from "builtin" as bool;',
+    ]
+    lines.extend(builtin_types)
+    lines.append("")
+
     roles = ", ".join([f'role {r["name"]} as {r["alias"]}' for r in proto["roles"]])
     lines.append(f'global protocol {proto["protocol"]}({roles})')
     lines.append("{")
@@ -35,43 +49,18 @@ def walk_body(body, indent=1):
             lines.append(f'{ind}continue {item["label"]};')
     return lines
 
-# Example usage with a Python dict:
-if __name__ == "__main__":
-    proto = {
-      "protocol": "Negotiate",
-      "roles": [
-        { "name":"Consumer", "alias":"C" },
-        { "name":"Producer", "alias":"P" }
-      ],
-      "body": [
-        { "kind":"message",  "name":"propose", "from":"C","to":"P","payload":"int" },
-        {
-          "kind":"rec", "label":"X", "body":[
-            {
-              "kind":"choice","at":"P","options":[
-                [ { "kind":"message","name":"accept","from":"P","to":"C","payload":"" },
-                  { "kind":"message","name":"confirm","from":"C","to":"P","payload":"" } ],
-                [ { "kind":"message","name":"reject","from":"P","to":"C","payload":"" } ],
-                [ { "kind":"message","name":"propose","from":"P","to":"C","payload":"int" },
-                  {
-                    "kind":"choice","at":"C","options":[
-                      [ { "kind":"message","name":"accept","from":"C","to":"P","payload":"" },
-                        { "kind":"message","name":"confirm","from":"P","to":"C","payload":"" } ],
-                      [ { "kind":"message","name":"reject","from":"C","to":"P","payload":"" } ],
-                      [ { "kind":"message","name":"propose","from":"C","to":"P","payload":"" },
-                        { "kind":"continue","label":"X" } ]
-                    ]
-                  }
-                ]
-              ]
-            }
-          ]
-        }
-      ]
-    }
-    scribble_code = json_to_scribble(proto)
-    with open("output.scr", "w") as f:
+
+def transform(proto, output_dir=None):
+    scribble_code = json_to_scribble_func(proto)
+    protocol_name = proto["protocol"]
+    file_name = f"{protocol_name}.scr"
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        file_path = os.path.join(output_dir, file_name)
+    else:
+        file_path = file_name
+    with open(file_path, "w") as f:
         f.write(scribble_code)
-    print("Scribble protocol written to output.scr")
+    print(f"Scribble protocol written to {file_path}")
     print("--- Scribble code ---")
     print(scribble_code)
