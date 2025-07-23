@@ -33,7 +33,10 @@ def check_well_formedness(scr_path: str, extra_import_paths=None) -> None:
                 argv += ["-ip", str(p)]
         argv += [str(scr_path)]
         sys.argv[:] = argv
-        _scribble_main(sys.argv)
+        try:
+            _scribble_main(sys.argv)
+        except SystemExit as e:
+            raise WellFormednessError("Protocol is not well-formed") from e
     finally:
         sys.argv[:] = old_argv
 
@@ -65,3 +68,8 @@ def project_protocol(
         _scribble_main(sys.argv)
     finally:
         sys.argv[:] = old_argv
+
+
+class WellFormednessError(Exception):
+    """Raised when a Scribble protocol is not well-formed."""
+    pass

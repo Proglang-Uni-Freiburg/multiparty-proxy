@@ -6,10 +6,11 @@ from typing import Any, List
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
+import os
 
 from tools.get_port import get_free_port
 from tools.json_to_scribble import transform
-from scribble_python.wf_checker import check_well_formedness
+from scribble_python.wf_checker import check_well_formedness, WellFormednessError
 
 
 # -- API ------------------------------------------------------
@@ -36,11 +37,12 @@ current_json:dict = None  # to store the current json protocol
 async def createMeetingReq(meeting: Meeting, request: Request) -> int: # why Any?
     # one: transform to scr
     current_json = await request.json()
-    transform(current_json, output_dir="protocols")
+    transform(current_json, output_dir="API/protocols")
     # two: check if protocol is well-formed
     try:
-        check_well_formedness(f"protocols/{meeting.protocol}.scr")
-    except Exception as e:
+        check_well_formedness(f"API/protocols/{meeting.protocol}.scr")
+    except WellFormednessError as e:
+        os.remove(f"API/protocols/{meeting.protocol}.scr")
         return Response(status_code=status.HTTP_400_BAD_REQUEST, content=f"Invalid protocol: {e}")
     # three: find free port
     proxy_port = get_free_port()
