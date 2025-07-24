@@ -12,6 +12,9 @@ from tools.get_port import get_free_port
 from tools.json_to_scribble import transform
 from scribble_python.wf_checker import check_well_formedness, WellFormednessError
 
+# fro handling several proxies
+import threading
+from proxy.proxy import main_proxy
 
 # -- API ------------------------------------------------------
 app = FastAPI()
@@ -30,6 +33,9 @@ class Meeting(BaseModel):
 meetingDict: dict[str, Meeting] = {}
 meeting_info: dict[str, int] = {}
 current_json:dict = None  # to store the current json protocol
+
+# for handling several proxies
+proxy_threads = {}  # meeting name -> thread
 
 
 # create a meeting -> register and give back meeting ID
@@ -51,8 +57,14 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int: # why Any
     proxy_port = get_free_port()
     meeting_info[meeting.protocol] = proxy_port
     # five: create proxy for meeting
-    # create_proxy()
-    # five: give back port number
+    actors = [(role.name, role.alias) for role in meeting.roles]
+    def run_proxy():
+        import asyncio
+        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol))
+    thread = threading.Thread(target=run_proxy, daemon=True)
+    thread.start()
+    proxy_threads[meeting.protocol] = thread
+    # six: give back port number
     return proxy_port
 
 # so that others can find out port based on meeting name
