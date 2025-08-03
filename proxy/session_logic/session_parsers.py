@@ -82,14 +82,34 @@ def scr_into_session(path_to_scr) -> Session:
             if match:
                 print("match at") # debug
                 actor = match.groups()
-                current_choice = Choice(actor, None, None)
+                current_choice = Choice(actor, [], None)
+                if not doing: # if not inside any rec or choice
+                    if one_ses:
+                        actual_ses.cont = current_choice
+                        if isinstance(actual_ses, Choice):
+                            actual_ses.update_conts()
+                        actual_ses = actual_ses.cont
+                    else:
+                        one_ses = current_choice
+                        actual_ses = one_ses
+                elif isinstance(doing[-1][0], Rec):
+                    doing[-1][0].actions.append(current_choice)
+                elif isinstance(doing[-1][0], Choice):
+                    choice = doing[-1][0]
+                    branch = doing[-1][1]
+
+                    # If we’ve never set alternatives at all, start with one empty branch
+                    if choice.alternatives is None:
+                        choice.alternatives = [[]]
+
+                    # If this branch index is beyond current length, extend with empty lists
+                    while len(choice.alternatives) <= branch:
+                        choice.alternatives.append([])
+
+                    # Now it's safe to append to the correct branch
+                    choice.alternatives[branch].append(current_choice)
                 doing.append((current_choice, 0))
-            if one_ses is None:
-                one_ses = current_choice
-            else:
-                actual_ses.cont = current_choice
-                actual_ses = current_choice
-            lines = lines[2:] # skip both word choice AND first {
+                lines = lines[2:]
 
         # rec
         elif "rec" in line:
@@ -98,7 +118,36 @@ def scr_into_session(path_to_scr) -> Session:
             if match:
                 print("match rec") # debug
                 name = match.groups()
-                current_rec = Rec(None)
+                current_rec = Rec([], None)
+                if not doing: # if not inside any rec or choice
+                    if one_ses:
+                        actual_ses.cont = current_rec
+                        if isinstance(actual_ses, Choice):
+                            actual_ses.update_conts()
+                        actual_ses = actual_ses.cont
+                    else:
+                        one_ses = current_rec
+                        actual_ses = one_ses
+                elif isinstance(doing[-1][0], Rec):
+                    doing[-1][0].actions.append(current_rec)
+                elif isinstance(doing[-1][0], Choice):
+                    choice = doing[-1][0]
+                    branch = doing[-1][1]
+
+                    # If we’ve never set alternatives at all, start with one empty branch
+                    if choice.alternatives is None:
+                        choice.alternatives = [[]]
+
+                    # If this branch index is beyond current length, extend with empty lists
+                    while len(choice.alternatives) <= branch:
+                        choice.alternatives.append([])
+
+                    # Now it's safe to append to the correct branch
+                    choice.alternatives[branch].append(current_rec)
+                doing.append((current_rec, 0))
+                lines = lines[2:]
+
+            """
                 doing.append((current_rec, 0))
                 print("appended rec") # debug
             if one_ses is None:
@@ -107,7 +156,8 @@ def scr_into_session(path_to_scr) -> Session:
                 actual_ses.cont = current_rec
                 actual_ses = current_rec
             lines = lines[2:] # skip both rec line AND first {
-
+            """
+            
         # message to
         elif "to" in line:
             pattern = r"(\w+)\(([^)]*)\) to (\w+);"
@@ -214,6 +264,8 @@ def scr_into_session(path_to_scr) -> Session:
                 pass # because that just means we are closing one option in choice ebfore going to the next
             elif doing:
                 if doing:
+                    # trigger function that joins actions with cont
+                    doing[-1][0].update_conts()
                     doing.pop()
                     lines = lines[1:]
                 print("erased rec or choice") # debug
@@ -224,7 +276,7 @@ def scr_into_session(path_to_scr) -> Session:
 
 
 if __name__ == "__main__":
-    print(scr_into_session(r"C:\Users\andre\Documents\Uni_Freiburg\SS_25\Bachelorarbeit\multiparty-proxy\proxy\protocols\Negotiate\Consumer.scr\Negotiate_Negotiate_Consumer.scr").cont.cont.cont.alternatives)
+    print(scr_into_session(r"C:\Users\andre\Documents\Uni_Freiburg\SS_25\Bachelorarbeit\multiparty-proxy\proxy\protocols\Negotiate\Consumer.scr\Negotiate_Negotiate_Consumer.scr").cont.actions[0].cont)
     print("done") # debug
 
     
