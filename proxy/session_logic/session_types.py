@@ -44,8 +44,11 @@ class Choice(Session):
 
     def update_conts(self):
         for item in self.alternatives:
-            if not isinstance(item, Ref):
-                item[-1].cont = self.cont
+            # blocks of actions
+            for i in range(0, len(item) - 1): # all except the last one
+                if not isinstance(item, Ref):
+                    item[i].cont = item[i+1]
+        # last item in each action block cont should be None -> that way we know we have to go back to choice, close it and go to its cont
     
 
 @dataclass
@@ -55,12 +58,12 @@ class Rec(Session):
         self.actions = actions
         self.cont = cont
     
+    # should test that it works ok!
     def update_conts(self):
-        for i in range(0, self.actions - 2):
+        for i in range(0, len(self.actions) - 1): # is -1 ok?
             if not isinstance(self.actions[i], Ref):
                 self.actions[i].cont = self.actions[i+1]
-        # last one's cont should be rec's cont? check later
-        self.actions[-1].cont = self.cont
+        # last one's cont should be None -> that way we know we have to go back to rec, close it and go to its cont
         
 @dataclass
 class Ref(Session):
