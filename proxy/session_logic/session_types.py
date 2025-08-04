@@ -39,6 +39,7 @@ class Choice(Session):
     # actor is for "choice at __" -> check if it is self
     def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session):
         super().__init__("choice") # kind
+        self.actor = actor # actor that chooses which branch to take
         self.alternatives = alternatives
         self.cont = cont
 
@@ -84,11 +85,6 @@ class SchemaValidationError(Exception):
     def __init__(self, message:str="Schema validation failed"):
         self.message = message
         super().__init__(self.message)
-
-class ErrorInSessionDicts(Exception):
-    """Raised when a lookup or addition for a label or session reference fails."""
-    def __init__(self, function:str, name: str, context: str = "Unknown"):
-        super().__init__(f"{function} failed for '{name}' in {context}")
 
 # for general errors in session
 class SessionError(Exception):

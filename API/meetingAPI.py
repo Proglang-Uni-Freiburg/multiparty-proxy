@@ -90,14 +90,3 @@ async def deleteMeetingReq(meeting_id: str) -> Response:
     del meeting_info[meeting_id]
     return Response(status_code=status.HTTP_204_NO_CONTENT)
     # should return ok but idk how it works
-
-# -- to store/create info --------------------------------------
-
-# make a func. to create better meeting IDs
-# def createMeetingID() -> str:
-
-# checks protocols
-
-# 1. create .src file with protocol
-# 2. uses scribble tool to parse it
-# 3. outputs .json (could also be .fsm and .java, but ig json make more sense to send to proxy!)

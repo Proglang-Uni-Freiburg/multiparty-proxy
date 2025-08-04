@@ -1,0 +1,43 @@
+module Negotiate_Negotiate_Producer;
+
+
+
+type <builtin>  "int" from "builtin" as int;
+
+type <builtin>  "string" from "builtin" as string;
+
+type <builtin>  "bool" from "builtin" as bool;
+
+local protocol Negotiate_Producer at Producer(role Consumer as C, role Producer as P) {
+propose(int) from C;
+rec X
+{
+choice at P
+{
+accept() to C;
+confirm() from C;
+}
+or
+{
+reject() to C;
+}
+or
+{
+propose(int) to C;
+choice at C
+{
+accept() from C;
+confirm() to C;
+}
+or
+{
+reject() from C;
+}
+or
+{
+propose() from C;
+continue X;
+}
+}
+}
+}

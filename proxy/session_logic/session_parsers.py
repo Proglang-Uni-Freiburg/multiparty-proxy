@@ -201,7 +201,6 @@ def scr_into_session(path_to_scr) -> Session:
         # close the latest choice or rec
         if "}" in line:
             if len(lines) == 1:
-                print(f" last: {actual_ses}") # debug
                 actual_ses.cont = End()
             elif "or" in lines[1]:
                 lines = lines[1:]
@@ -209,7 +208,6 @@ def scr_into_session(path_to_scr) -> Session:
             if doing:
                 if doing:
                     # trigger function that joins actions with cont
-                    print(f"updating conts {doing[-1][0]}") # debug
                     doing[-1][0].update_conts()
                     doing.pop()
             # otherwise we can just skip it
