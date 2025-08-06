@@ -35,7 +35,7 @@ reject() to P;
 }
 or
 {
-propose() to P;
+propose(int) to P;
 continue X;
 }
 }

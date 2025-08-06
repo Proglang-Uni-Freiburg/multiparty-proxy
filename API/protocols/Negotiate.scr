@@ -23,7 +23,7 @@ global protocol Negotiate(role Consumer as C, role Producer as P)
 			} or {
 				reject() from C to P;
 			} or {
-				propose() from C to P;
+				propose(int) from C to P;
 				continue X;
 			}
 		}

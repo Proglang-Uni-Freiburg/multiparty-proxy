@@ -34,7 +34,7 @@ def make_session(actor:str, protocol:str):
     handle_session(ses:Session, actor_socket:)
 """
 
-async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots, actors_complete, protocol_name, all_connected_evt: asyncio.Event):
+async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots, actors_complete, protocol_name, incoming_queues, all_connected_evt: asyncio.Event):
     """
     Add description
     """
@@ -50,6 +50,11 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         
         # create session based on protocol
         actor_ses = scr_into_session(f"proxy/protocols/{protocol_name}/{protocol_name}_{protocol_name}_{actor_name}.scr")
+
+        # make receiving queue
+        actor_alias = next(alias for name, alias in actors_complete if name == actor_name)
+
+        asyncio.create_task(receiving_queue(actor_alias, clientSocket,incoming_queues[actor_alias]))
         
         # fire the event if we’re complete
         if all(actor_slots[a] for a in actor_slots):
@@ -62,12 +67,9 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
 
         # start tracking session
         try:
-            # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases
+            # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probbaly do in main proxy instead of actor handler
             alias_slots = {alias: actor_slots[name] for name, alias in actors_complete}
-            print(f"actors: {alias_slots}") # debug
-            actor_alias = next(alias for name, alias in actors_complete if name == actor_name) # get actor alias instead of name
-            print(actor_ses)
-            await handle_session(actor_alias, actor_ses, alias_slots) # def session + action name
+            await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues) # def session + action name
         except websockets.ConnectionClosed:
             print(f"An error has been encountered: ")
 
@@ -79,18 +81,29 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
             actor_slots[actor_name] = None
             print(f"Actor {actor_name} disconnected")
 
+async def receiving_queue(actor: str,
+                      ws: WebSocketServerProtocol,
+                      queue: asyncio.Queue[str]):
+    try:
+        async for msg in ws:
+            await queue.put(msg)
+    except Exception as e:
+        print(f"Problem with receiving queue for {actor}: {e}")
+
 async def main_proxy(proxy_port: int, actors_complete, protocol_name: str):
     print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
     actors = [name for name, alias in actors_complete]
     project_actors(actors, protocol_name) # make necessary projections
     actor_slots = {actor: None for actor in actors} # initialize connections list
+    aliases = [alias for _n,alias in actors_complete]
+    incoming_queues = { alias: asyncio.Queue() for alias in aliases }
     
     all_joined_evt = asyncio.Event()
 
     # wait for actors to join
     print("Waiting for all actors to join...")
     async with serve(
-        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, all_joined_evt),
+        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, all_joined_evt),
         "localhost",
         proxy_port
     ):

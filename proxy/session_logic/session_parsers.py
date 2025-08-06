@@ -42,7 +42,8 @@ def scr_into_session(path_to_scr) -> Session:
             pattern = r"choice at (\w+)"
             match = re.match(pattern, line)
             if match:
-                actor = match.groups()
+                actor = match.group(1)
+                print(f"defining actor for choice: {actor}") # debug
                 current_choice = Choice(actor, [], None)
                 if not doing: # if not inside any rec or choice
                     if one_ses:
@@ -77,7 +78,7 @@ def scr_into_session(path_to_scr) -> Session:
             pattern = r"rec (\w+)"
             match = re.match(pattern, line)
             if match:
-                name = match.groups()
+                name = match.group(1)
                 current_rec = Rec([], None)
                 if not doing: # if not inside any rec or choice
                     if one_ses:
@@ -178,7 +179,7 @@ def scr_into_session(path_to_scr) -> Session:
             pattern = r"continue (\w+);"
             match = re.match(pattern, line)
             if match:
-                name = match.groups()
+                name = match.group(1)
                 if isinstance(doing[-1][0], Rec):
                     doing[-1][0].actions.append(Ref(name))
                 if isinstance(doing[-1][0], Choice):
@@ -209,6 +210,8 @@ def scr_into_session(path_to_scr) -> Session:
                 if doing:
                     # trigger function that joins actions with cont
                     doing[-1][0].update_conts()
+                    if isinstance(doing[-1][0], Choice):
+                        doing[-1][0].update_actors_involved()
                     doing.pop()
             # otherwise we can just skip it
             lines = lines[1:]

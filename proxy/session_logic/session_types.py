@@ -37,11 +37,12 @@ class Message(Session):
 @dataclass
 class Choice(Session):
     # actor is for "choice at __" -> check if it is self
-    def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session):
+    def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session, actors_involved:list[str]=[]):
         super().__init__("choice") # kind
         self.actor = actor # actor that chooses which branch to take
         self.alternatives = alternatives
         self.cont = cont
+        self.actors_involved = actors_involved # initialize and will later be rewritten
 
     def update_conts(self):
         for item in self.alternatives:
@@ -51,6 +52,16 @@ class Choice(Session):
                     item[i].cont = item[i+1]
         # last item in each action block cont should be None -> that way we know we have to go back to choice, close it and go to its cont
     
+    def update_actors_involved(self):
+        actors = []
+        for item in self.alternatives:
+            for i in item:
+                if isinstance(i, Choice) or isinstance(i, Message): # ref and rec don't have actor
+                    if i.actor not in actors:
+                        actors.append(i.actor)
+        self.actors_involved = actors
+
+
 
 @dataclass
 class Rec(Session):
@@ -65,6 +76,8 @@ class Rec(Session):
             if not isinstance(self.actions[i], Ref):
                 self.actions[i].cont = self.actions[i+1]
         # last one's cont should be None -> that way we know we have to go back to rec, close it and go to its cont
+    
+
         
 @dataclass
 class Ref(Session):

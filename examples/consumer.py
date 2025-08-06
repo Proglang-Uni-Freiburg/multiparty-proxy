@@ -26,18 +26,20 @@ async def ws_client(port):
             msg = await ws.recv() # will get when all actors join
             print(f"All actors have joined. Initializing programm...")
             
-            await ws.send(json.dumps(10))# propose
-            time.sleep(3)
+            prop = input("Write a number to propose: ")
+            await ws.send(json.dumps(int(prop)))# propose
+            await asyncio.sleep(3)
             rec = True
             while rec:
                 rec = False # will nit repeat unless explicictly stated
                 choice_one = json.loads(await ws.recv())
+                print(f"in consumer, received choice of branch from producer, {choice_one}, {type(choice_one)}") # debug
                 match choice_one:
                     case 0:
                         accept = json.loads(await ws.recv())
                         print("producer has said accepted")
-                        time.sleep(3)
-                        await ws.send() # confirm; can i send without anything?
+                        await asyncio.sleep(3)
+                        await ws.send(json.dumps(None)) # confirm; can i send without anything?
                     case 1:
                         reject = json.loads( await ws.recv())
                     case 2:
@@ -46,17 +48,18 @@ async def ws_client(port):
                         user_accept = input()
                         if user_accept == "Yes": # choose branch 0
                             await ws.send(json.dumps(0))
-                            time.sleep(3)
-                            await ws.send() # accept
+                            await asyncio.sleep(3)
+                            await ws.send(json.dumps(None)) # accept
                             confirm = json.loads(await ws.recv())
                         elif user_accept == "No": # choose branch 1
                             await ws.send(json.dumps(1))
-                            time.sleep(3)
-                            await ws.send() # reject
+                            await asyncio.sleep(3)
+                            await ws.send(json.dumps(None)) # reject
                         else: # choose branch 2
                             await ws.send(json.dumps(2))
-                            time.sleep(3)
-                            await ws.send() # propose
+                            await asyncio.sleep(3)
+                            prop = input("Write a number to propose: ")
+                            await ws.send(json.dumps(int(prop)))# propose
                             rec = True # continue X
 
 
