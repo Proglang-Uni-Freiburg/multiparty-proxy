@@ -16,6 +16,8 @@ type <builtin>  "dict" from "builtin" as dict;
 
 type <builtin>  "tuple" from "builtin" as tuple;
 
+type <builtin>  "contact" from "builtin" as contact;
+
 local protocol Negotiate_Producer at Producer(role Consumer as C, role Producer as P) {
 propose(int) from C;
 rec X
@@ -23,6 +25,7 @@ rec X
 choice at P
 {
 accept() to C;
+contact(contact) to C;
 confirm() from C;
 }
 or

@@ -32,13 +32,19 @@ async def ws_client(port):
             await asyncio.sleep(3)
             rec = True
             while rec:
-                rec = False # will nit repeat unless explicictly stated
+                rec = False # will not repeat unless explicictly stated
                 print(f"Consumer is offering {propose}. Accept? Write Yes, No, or Propose: ")
                 user_accept = input()
                 if user_accept == "Yes": # choose branch 0
                     await ws.send(json.dumps(0))
                     await asyncio.sleep(3)
                     await ws.send(json.dumps(None)) # accept
+                    await asyncio.sleep(3)
+                    contact = {
+                            "name":  "Alice",
+                            "email": "alice@gmail.com"
+                        }
+                    await ws.send(json.dumps(contact))
                     confirm = json.loads(await ws.recv())
                 elif user_accept == "No": # choose branch 1
                     await ws.send(json.dumps(1))

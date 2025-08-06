@@ -11,7 +11,7 @@ def json_to_scribble_func(proto, schemas):
 
      # Add builtin type declarations -> add a marker later for custom vs builtin
     builtin_types = []
-    for schema in schemas:
+    for schema in schemas.keys():
         builtin_types.append(f'type <builtin> "{schema}" from "builtin" as {schema};')
     lines.extend(builtin_types)
     lines.append("")
@@ -57,11 +57,6 @@ def transform(proto, schemas, output_dir=None):
         file_path = os.path.join(output_dir, file_name)
     else:
         file_path = file_name
-
-     # Print the generated Scribble code for debugging
-    print("--- Scribble code ---")
-    print(scribble_code)
-    print("--- End Scribble code ---")
 
     with open(file_path, "w") as f:
         f.write(scribble_code)

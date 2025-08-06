@@ -7,6 +7,7 @@ type <builtin> "str" from "builtin" as str;
 type <builtin> "list" from "builtin" as list;
 type <builtin> "dict" from "builtin" as dict;
 type <builtin> "tuple" from "builtin" as tuple;
+type <builtin> "contact" from "builtin" as contact;
 
 global protocol Negotiate(role Consumer as C, role Producer as P)
 {
@@ -15,6 +16,7 @@ global protocol Negotiate(role Consumer as C, role Producer as P)
 		choice at P
 		{
 			accept() from P to C;
+			contact(contact) from P to C;
 			confirm() from C to P;
 		} or {
 			reject() from P to C;

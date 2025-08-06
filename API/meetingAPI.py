@@ -45,8 +45,11 @@ proxy_threads = {}  # meeting name -> thread
 @app.post("/meetings/", response_model=int)
 async def createMeetingReq(meeting: Meeting, request: Request) -> int: # why Any?
     # zero: define types
+    print(f"meeting protocol: {meeting.protocol}") # debug
     if meeting.protocol in meeting_types:
+        print(f"found schemas in {meeting.protocol}") # debug
         schemas = meeting_types[meeting.protocol]
+        print(f"schemas: {schemas}") # debug
     else:
         schemas = None
     types = create_type_checker(schemas)
@@ -90,6 +93,7 @@ async def getMeetingReq(name:str) -> int:
 # for now schemas one by one but later as a batch
 @app.post("/types/{meeting_name}/")
 async def createMeetingReq(meeting_name: str, schema:Mapping[str, Any]= Body(...)): # why Any?
+    print(f"defining: {schema} for {meeting_name}") # debug
     if meeting_name not in meeting_types:
         meeting_types[meeting_name] = []
     meeting_types[meeting_name].append(schema)

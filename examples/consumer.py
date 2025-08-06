@@ -38,6 +38,9 @@ async def ws_client(port):
                     case 0:
                         accept = json.loads(await ws.recv())
                         print("producer has said accepted")
+                        p_contact = json.loads(await ws.recv())
+                        print(f"Producer's name: {p_contact['name']}")
+                        print(f"Producer's email: {p_contact['email']}")
                         await asyncio.sleep(3)
                         await ws.send(json.dumps(None)) # confirm; can i send without anything?
                     case 1:
