@@ -65,8 +65,9 @@ class Choice(Session):
 
 @dataclass
 class Rec(Session):
-    def __init__(self, actions: list[Session], cont:Session): # should Label be there? How to label?
+    def __init__(self, label, actions: list[Session], cont:Session): # should Label be there? How to label?
         super().__init__("rec") # kind
+        self.label = label
         self.actions = actions
         self.cont = cont
     

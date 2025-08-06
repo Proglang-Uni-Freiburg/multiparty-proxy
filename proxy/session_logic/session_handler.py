@@ -29,7 +29,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) 
     # initialize sessions
     # name is name of actor carrying ses out rn
     actual_session = ses
-    print(f"in handler, {actual_session}") # debug
+    print(f"in handler, {actual_session} for {name}") # debug
     doing:list[Session] = [] # actually restrict sessions inside to only be choice or rec
     
     # functions to tack where we are in a rec or choice session
@@ -39,18 +39,20 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) 
     # payload = None # initialize but will change when there is one
     # carry out sessions in a loop (useful for cont)
     
-    print(f"carrying out ses {actual_session} for {name}")
+
     while (not isinstance(actual_session, End)):
+        print(f"carrying out ses {actual_session} for {name}")
         # print(payload) # debug
         match (actual_session):
             case (Message()):
+                print(f"action name {actual_session.label}") # debug
                 match (actual_session.dir.dir):
                     case ("from"): # receive message from someone else
                         try:
                             msg = await recv_queues[actual_session.actor].get() # proxy receives message from the actor that's supposed to send it; give over the necessary websocket -> I DONT THINK THIS IS HOW IT WORKS!!! DOUBLE CHECK!! MAYBE IT'S SUPPOSED TO BE PROXY SOCKET AS RECV!!
                             # because sometimes sockets act as servers and sometimes as cleints, no? although proxy will ALWAYS act as server, so idk... maybe it's ok?
                             # proxy should check message ok
-                            print(check_payload(msg, actual_session.payload, types)) # for now print but later raise error
+                            print(f"checking payload: {check_payload(msg, actual_session.payload, types)}") # for now print but later raise error
                             await actor_list[name].send(msg) # NOW weiterleiten message to actual client that should receive it
                             print(f"Message received by {name}, sent by {actual_session.actor}") # to track what proxy is doing at moment -> could be removed
                         except Exception as e:
@@ -59,7 +61,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) 
                     case ("to"): # send message to someone else
                         try:
                             msg = await recv_queues[name].get()
-                            print(check_payload(msg, actual_session.payload, types)) # for now print but later raise error
+                            print(f"checking payload: {check_payload(msg, actual_session.payload, types)}") # for now print but later raise error
                             await actor_list[actual_session.actor].send(msg)
                             print(f"Message sent by {name}, received by {actual_session.actor}") # to track what proxy is doing at moment -> could be removed
                         except Exception as e:
@@ -78,11 +80,9 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) 
                     print(f"ses: {actual_session}, actor to/from: {actual_session.actor} in {name}")
                     branch = await recv_queues[actual_session.actor].get()
                     # let involved parties know which branch will be taken
-                    print(f"is actors involved ok? : {actual_session.actors_involved}") # debug
                     for act in actual_session.actors_involved:
-                        print(f"sending branch decision to {act} on {actor_list[act]}") # debug
+                        print(f"sending branch decision to {act}") # debug
                         await actor_list[act].send(branch)
-                    print(f"branch type {type(branch)}")
                     print(f"{name} taking branch {branch}")
                     doing.append(actual_session)
                     actual_session = actual_session.alternatives[json.loads(branch)][0] # start with first action, others follow with cont
@@ -91,6 +91,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) 
                     print(f"choice, {e}, actor fail:{name}") # debug
                     return End()
             case(Ref()):
+                print(f"doing ref {actual_session.name}")
                 for item in reversed(doing):
                     if isinstance(item, Rec) and item.label == actual_session.name:
                         actual_session = item # .actions[0]
@@ -98,7 +99,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) 
                 try: 
                     pass
                 except Exception as e:
-                    print(f"ref, {e}") # debug
+                    print(f"ref problem, {e}") # debug
                     return End()
             case(Rec()):
                 # declare rec and go inside rec list to do actions
@@ -107,7 +108,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) 
                 try: 
                     pass
                 except Exception as e:
-                    print(f"rec, {e}") # debug
+                    print(f"rec problem, {e}") # debug
                     return End()
             case _:
                 return End()

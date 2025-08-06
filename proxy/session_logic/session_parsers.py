@@ -43,7 +43,7 @@ def scr_into_session(path_to_scr) -> Session:
             match = re.match(pattern, line)
             if match:
                 actor = match.group(1)
-                print(f"defining actor for choice: {actor}") # debug
+                # print(f"defining actor for choice: {actor}") # debug
                 current_choice = Choice(actor, [], None)
                 if not doing: # if not inside any rec or choice
                     if one_ses:
@@ -79,7 +79,7 @@ def scr_into_session(path_to_scr) -> Session:
             match = re.match(pattern, line)
             if match:
                 name = match.group(1)
-                current_rec = Rec([], None)
+                current_rec = Rec(name, [], None)
                 if not doing: # if not inside any rec or choice
                     if one_ses:
                         actual_ses.cont = current_rec
