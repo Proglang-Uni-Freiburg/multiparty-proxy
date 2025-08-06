@@ -16,6 +16,8 @@ from scribble_python.wf_checker import check_well_formedness, WellFormednessErro
 import threading
 from proxy.proxy import main_proxy
 
+from proxy.session_logic.type_validation import create_type_checker
+
 # -- API ------------------------------------------------------
 app = FastAPI()
 
@@ -42,9 +44,17 @@ proxy_threads = {}  # meeting name -> thread
 # create a meeting -> register and give back meeting ID
 @app.post("/meetings/", response_model=int)
 async def createMeetingReq(meeting: Meeting, request: Request) -> int: # why Any?
+    # zero: define types
+    if meeting.protocol in meeting_types:
+        schemas = meeting_types[meeting.protocol]
+    else:
+        schemas = None
+    types = create_type_checker(schemas)
+    print(types) # debug
+
     # one: transform to scr
     current_json = await request.json()
-    transform(current_json, output_dir="API/protocols")
+    transform(current_json, types, output_dir="API/protocols")
     # two: check if protocol is well-formed
     try:
         check_well_formedness(f"API/protocols/{meeting.protocol}.scr")
@@ -58,15 +68,12 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int: # why Any
     proxy_port = get_free_port()
     meeting_info[meeting.protocol] = proxy_port
 
-    if meeting.protocol in meeting_types:
-        schema = meeting_types[meeting.protocol]
-    else:
-        schema = None
+    
     # five: create proxy for meeting
     actors = [(role.name, role.alias) for role in meeting.roles]
     def run_proxy():
         import asyncio
-        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, schema))
+        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, types))
     thread = threading.Thread(target=run_proxy, daemon=True)
     thread.start()
     proxy_threads[meeting.protocol] = thread

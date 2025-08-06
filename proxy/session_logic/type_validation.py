@@ -17,7 +17,7 @@ def create_type_checker(schema_list)->dict:
     schemas["list"] = TypeAdapter(list).json_schema()
     schemas["dict"] = TypeAdapter(dict).json_schema()
     schemas["tuple"] = TypeAdapter(tuple).json_schema()
-    schemas[""] = TypeAdapter(None).json_schema()
+    # schemas[""] = TypeAdapter(None).json_schema()
 
     # then define the custom ones if any
     if schema_list:
@@ -29,6 +29,7 @@ def create_type_checker(schema_list)->dict:
 def check_payload(msg, expected:str, schema_dict) -> bool: 
     # true if its valid and false if it isnt
     try:
+        print(f"checking {expected} for {json.loads(msg)}") # debug
         jsonschema.validate(instance=json.loads(msg), schema=schema_dict[expected])
         return True
     except jsonschema.ValidationError:

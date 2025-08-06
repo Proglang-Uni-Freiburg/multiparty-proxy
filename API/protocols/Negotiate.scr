@@ -1,8 +1,12 @@
 module Negotiate;
 
 type <builtin> "int" from "builtin" as int;
-type <builtin> "string" from "builtin" as string;
+type <builtin> "float" from "builtin" as float;
 type <builtin> "bool" from "builtin" as bool;
+type <builtin> "str" from "builtin" as str;
+type <builtin> "list" from "builtin" as list;
+type <builtin> "dict" from "builtin" as dict;
+type <builtin> "tuple" from "builtin" as tuple;
 
 global protocol Negotiate(role Consumer as C, role Producer as P)
 {

@@ -4,9 +4,17 @@ module Negotiate_Negotiate_Consumer;
 
 type <builtin>  "int" from "builtin" as int;
 
-type <builtin>  "string" from "builtin" as string;
+type <builtin>  "float" from "builtin" as float;
 
 type <builtin>  "bool" from "builtin" as bool;
+
+type <builtin>  "str" from "builtin" as str;
+
+type <builtin>  "list" from "builtin" as list;
+
+type <builtin>  "dict" from "builtin" as dict;
+
+type <builtin>  "tuple" from "builtin" as tuple;
 
 local protocol Negotiate_Consumer at Consumer(role Consumer as C, role Producer as P) {
 propose(int) to P;

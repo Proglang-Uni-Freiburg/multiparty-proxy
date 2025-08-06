@@ -91,12 +91,11 @@ async def receiving_queue(actor: str,
     except Exception as e:
         print(f"Problem with receiving queue for {actor}: {e}")
 
-async def main_proxy(proxy_port: int, actors_complete, protocol_name: str, schemas):
+async def main_proxy(proxy_port: int, actors_complete, protocol_name: str, types):
     print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
     actors = [name for name, alias in actors_complete]
     project_actors(actors, protocol_name) # make necessary projections
     actor_slots = {actor: None for actor in actors} # initialize connections list
-    types = create_type_checker(schemas)
     aliases = [alias for _n,alias in actors_complete]
     incoming_queues = { alias: asyncio.Queue() for alias in aliases }
 
