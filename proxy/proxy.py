@@ -14,6 +14,7 @@ from scribble_python.wf_checker import project_protocol
 
 from proxy.session_logic.session_handler import *
 from proxy.session_logic.session_parsers import *
+from proxy.session_logic.type_validation import *
 
 def project_actors(actors:list[str], protocol_name: str):
     for a in actors:
@@ -34,7 +35,7 @@ def make_session(actor:str, protocol:str):
     handle_session(ses:Session, actor_socket:)
 """
 
-async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots, actors_complete, protocol_name, incoming_queues, all_connected_evt: asyncio.Event):
+async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots, actors_complete, protocol_name, incoming_queues, types, all_connected_evt: asyncio.Event):
     """
     Add description
     """
@@ -69,7 +70,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         try:
             # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probbaly do in main proxy instead of actor handler
             alias_slots = {alias: actor_slots[name] for name, alias in actors_complete}
-            await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues) # def session + action name
+            await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, types) # def session + action name
         except websockets.ConnectionClosed:
             print(f"An error has been encountered: ")
 
@@ -90,20 +91,22 @@ async def receiving_queue(actor: str,
     except Exception as e:
         print(f"Problem with receiving queue for {actor}: {e}")
 
-async def main_proxy(proxy_port: int, actors_complete, protocol_name: str):
+async def main_proxy(proxy_port: int, actors_complete, protocol_name: str, schemas):
     print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
     actors = [name for name, alias in actors_complete]
     project_actors(actors, protocol_name) # make necessary projections
     actor_slots = {actor: None for actor in actors} # initialize connections list
+    types = create_type_checker(schemas)
     aliases = [alias for _n,alias in actors_complete]
     incoming_queues = { alias: asyncio.Queue() for alias in aliases }
+
     
     all_joined_evt = asyncio.Event()
 
     # wait for actors to join
     print("Waiting for all actors to join...")
     async with serve(
-        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, all_joined_evt),
+        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, types, all_joined_evt),
         "localhost",
         proxy_port
     ):

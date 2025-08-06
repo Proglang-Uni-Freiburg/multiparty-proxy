@@ -17,11 +17,12 @@ def create_type_checker(schema_list)->dict:
     schemas["list"] = TypeAdapter(list).json_schema()
     schemas["dict"] = TypeAdapter(dict).json_schema()
     schemas["tuple"] = TypeAdapter(tuple).json_schema()
+    schemas[""] = TypeAdapter(None).json_schema()
 
     # then define the custom ones if any
     if schema_list:
         for new_schema in schema_list:
-            schemas[""] = new_schema # missing how to know name
+            schemas[new_schema.get("title")] = new_schema # missing how to know name
     
     return schemas
 
@@ -36,8 +37,7 @@ def check_payload(msg, expected:str, schema_dict) -> bool:
     except Exception as e:
         print(f"Something went wrong with the type validation {e}") # make proper exception
 
-
-
+"""
 if __name__ == "__main__":
     types = create_type_checker([])
     temp_dict = {}
@@ -50,5 +50,5 @@ if __name__ == "__main__":
     print(check_payload(json.dumps((5, 6)), "tuple", types)) # tuple
     print(check_payload(json.dumps(["hi", False]), "list", types)) # list
     print(check_payload(json.dumps(temp_dict), "dict", types)) # dict
-    
+"""
     

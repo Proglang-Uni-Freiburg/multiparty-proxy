@@ -3,6 +3,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent))
 
 from session_types import *
+from type_validation import *
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets server websocket
 from websockets import ClientProtocol # for websockets client
 from typing import Any
@@ -22,7 +23,7 @@ async def send(actor_list, actor:str, message:Any, websocket:ClientProtocol|WebS
 
 
 # suppose async because we're handling messages
-async def handle_session(name:str, ses:Session, actor_list, recv_queues) -> End: # does it actually always return End??
+async def handle_session(name:str, ses:Session, actor_list, recv_queues, types) -> End: # does it actually always return End??
     # need proxy socket so we can se the send and receive functions from websockets??
     # we need the actor list so we can relate sockets to actor for the sending and receiving of messages?
     # initialize sessions
@@ -49,9 +50,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues) -> End:
                             msg = await recv_queues[actual_session.actor].get() # proxy receives message from the actor that's supposed to send it; give over the necessary websocket -> I DONT THINK THIS IS HOW IT WORKS!!! DOUBLE CHECK!! MAYBE IT'S SUPPOSED TO BE PROXY SOCKET AS RECV!!
                             # because sometimes sockets act as servers and sometimes as cleints, no? although proxy will ALWAYS act as server, so idk... maybe it's ok?
                             # proxy should check message ok
-                            # print(schema_validation.checkPayload(payload, ses_client_actual.payload, ses_server_actual.payload)) # check client paylaod
+                            print(check_payload(msg, actual_session.payload, types)) # for now print but later raise error
                             await actor_list[name].send(msg) # NOW weiterleiten message to actual client that should receive it
-                            # payload = None # reset payload to none
                             print(f"Message received by {name}, sent by {actual_session.actor}") # to track what proxy is doing at moment -> could be removed
                         except Exception as e:
                             print(f"from, {e}") # debug
@@ -59,9 +59,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues) -> End:
                     case ("to"): # send message to someone else
                         try:
                             msg = await recv_queues[name].get()
-                            # print(schema_validation.checkPayload(payload, ses_client_actual.payload, ses_server_actual.payload)) # check client paylaod
+                            print(check_payload(msg, actual_session.payload, types)) # for now print but later raise error
                             await actor_list[actual_session.actor].send(msg)
-                            # payload = None # reset payload to none
                             print(f"Message sent by {name}, received by {actual_session.actor}") # to track what proxy is doing at moment -> could be removed
                         except Exception as e:
                             print(f"to, {e}") # debug
@@ -110,12 +109,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues) -> End:
                 except Exception as e:
                     print(f"rec, {e}") # debug
                     return End()
-            # case _:
-                # return End()
-            #debug
-            case _other:
-                # unexpected node type — log it and break the loop
-                print(f"Unhandled session node: {actual_session.kind} {actual_session.label}")
+            case _:
+                return End()
         # if last action in rec or choice, do next session cont of rec/choice and close rec/choice
         if not actual_session: # if actual session is None; a next cont indicates for choice and rec that their list of actions is over and we might close them
             actual_session = doing[-1].cont
