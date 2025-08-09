@@ -28,7 +28,7 @@ async def ws_client(port):
             
             prop = input("Write a number to propose: ")
             await ws.send(json.dumps(int(prop)))# propose
-            await asyncio.sleep(3)
+            # await asyncio.sleep(3)
             rec = True
             while rec:
                 rec = False # will nit repeat unless explicictly stated
@@ -41,7 +41,7 @@ async def ws_client(port):
                         p_contact = json.loads(await ws.recv())
                         print(f"Producer's name: {p_contact['name']}")
                         print(f"Producer's email: {p_contact['email']}")
-                        await asyncio.sleep(3)
+                        # await asyncio.sleep(3)
                         await ws.send(json.dumps(None)) # confirm; can i send without anything?
                     case 1:
                         reject = json.loads( await ws.recv())
@@ -51,16 +51,16 @@ async def ws_client(port):
                         user_accept = input()
                         if user_accept == "Yes": # choose branch 0
                             await ws.send(json.dumps(0))
-                            await asyncio.sleep(3)
+                            # await asyncio.sleep(3)
                             await ws.send(json.dumps(None)) # accept
                             confirm = json.loads(await ws.recv())
                         elif user_accept == "No": # choose branch 1
                             await ws.send(json.dumps(1))
-                            await asyncio.sleep(3)
+                            # await asyncio.sleep(3)
                             await ws.send(json.dumps(None)) # reject
                         else: # choose branch 2
                             await ws.send(json.dumps(2))
-                            await asyncio.sleep(3)
+                            # await asyncio.sleep(3)
                             prop = input("Write a number to propose: ")
                             await ws.send(json.dumps(int(prop)))# propose
                             rec = True # continue X

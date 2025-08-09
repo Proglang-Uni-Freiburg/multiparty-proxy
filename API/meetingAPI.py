@@ -49,11 +49,9 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int: # why Any
     if meeting.protocol in meeting_types:
         print(f"found schemas in {meeting.protocol}") # debug
         schemas = meeting_types[meeting.protocol]
-        print(f"schemas: {schemas}") # debug
     else:
         schemas = None
     types = create_type_checker(schemas)
-    print(types) # debug
 
     # one: transform to scr
     current_json = await request.json()

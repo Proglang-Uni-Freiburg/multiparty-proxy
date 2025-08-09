@@ -29,17 +29,19 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
             
             propose = json.loads(await ws.recv())
-            await asyncio.sleep(3)
+            # await asyncio.sleep(3)
             rec = True
             while rec:
                 rec = False # will not repeat unless explicictly stated
                 print(f"Consumer is offering {propose}. Accept? Write Yes, No, or Propose: ")
                 user_accept = input()
                 if user_accept == "Yes": # choose branch 0
+                    print("About to send 0") # debug
                     await ws.send(json.dumps(0))
-                    await asyncio.sleep(3)
+                    print("Technically sent 0") # debug
+                    # await asyncio.sleep(3)
                     await ws.send(json.dumps(None)) # accept
-                    await asyncio.sleep(3)
+                    # await asyncio.sleep(3)
                     contact = {
                             "name":  "Alice",
                             "email": "alice@gmail.com"
@@ -48,11 +50,11 @@ async def ws_client(port):
                     confirm = json.loads(await ws.recv())
                 elif user_accept == "No": # choose branch 1
                     await ws.send(json.dumps(1))
-                    await asyncio.sleep(3)
+                    # await asyncio.sleep(3)
                     await ws.send(json.dumps(None)) # reject
                 else: # choose branch 2
                     await ws.send(json.dumps(2))
-                    await asyncio.sleep(3)
+                    # await asyncio.sleep(3)
                     prop = input("Write a number to propose: ")
                     await ws.send(json.dumps(int(prop)))# propose
                     choice_two = json.loads(await ws.recv())
@@ -60,14 +62,14 @@ async def ws_client(port):
                         case 0:
                             accept = json.loads(await ws.recv())
                             print("consumer has said accepted")
-                            await asyncio.sleep(3)
+                            # await asyncio.sleep(3)
                             await ws.send(json.dumps(None)) # confirm; can i send without anything?
                         case 1:
-                            await asyncio.sleep(3)
+                            # await asyncio.sleep(3)
                             reject = json.loads(await ws.recv())
                         case 2:
                             propose = json.loads(await ws.recv())
-                            await asyncio.sleep(3)
+                            # await asyncio.sleep(3)
                             rec = True
 
 
