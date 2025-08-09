@@ -34,10 +34,13 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
     
     
     while (not isinstance(actual_session, End)):
-        # debug for p
-        if name == 'P':
-            print(f"actual session: {actual_session}, cont: {actual_session.cont}")
-    
+       
+        # debug
+        if not type(actual_session) == Ref:
+            print(f"actual session: {actual_session}, cont: {actual_session.cont} in {name}")
+        else:
+             print(f"actual session: {actual_session} in {name}")
+
         print(f"carrying out ses {actual_session} for {name}")
         # print(payload) # debug
         match (actual_session):
