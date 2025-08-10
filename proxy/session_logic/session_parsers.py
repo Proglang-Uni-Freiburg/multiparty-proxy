@@ -124,6 +124,8 @@ def scr_into_session(path_to_scr) -> Session:
             match = re.match(pattern, line)
             if match:
                 name, payload, actor = match.groups()
+                if not payload:
+                    payload = "none"
                 if not doing: # if not inside any rec or choice
                     if one_ses:
                         actual_ses.cont = Message(Dir("to"), Label(name), actor, payload, None)
@@ -157,6 +159,8 @@ def scr_into_session(path_to_scr) -> Session:
             match = re.match(pattern, line)
             if match:
                 name, payload, actor = match.groups()
+                if not payload:
+                    payload = "none"
                 if not doing: # if not inside any rec or choice
                     if one_ses:
                         actual_ses.cont = Message(Dir("from"), Label(name), actor, payload, None)

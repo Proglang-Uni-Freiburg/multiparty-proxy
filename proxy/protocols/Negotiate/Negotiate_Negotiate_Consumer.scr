@@ -16,6 +16,8 @@ type <builtin>  "dict" from "builtin" as dict;
 
 type <builtin>  "tuple" from "builtin" as tuple;
 
+type <builtin>  "none" from "builtin" as none;
+
 type <builtin>  "contact" from "builtin" as contact;
 
 local protocol Negotiate_Consumer at Consumer(role Consumer as C, role Producer as P) {

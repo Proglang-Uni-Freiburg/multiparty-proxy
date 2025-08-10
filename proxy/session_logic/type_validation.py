@@ -27,7 +27,7 @@ def create_type_checker(schema_list)-> dict:
     schemas["list"] = TypeAdapter(list).json_schema()
     schemas["dict"] = TypeAdapter(dict).json_schema()
     schemas["tuple"] = TypeAdapter(tuple).json_schema()
-    # schemas[""] = TypeAdapter(None).json_schema()
+    schemas["none"] = TypeAdapter(None).json_schema()
 
     # then define the custom ones if any
     if schema_list:
