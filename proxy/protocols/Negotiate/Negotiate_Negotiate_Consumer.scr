@@ -18,7 +18,7 @@ type <builtin>  "tuple" from "builtin" as tuple;
 
 type <builtin>  "none" from "builtin" as none;
 
-type <builtin>  "contact" from "builtin" as contact;
+type <custom>  "contact" from "custom" as contact;
 
 local protocol Negotiate_Consumer at Consumer(role Consumer as C, role Producer as P) {
 propose(int) to P;

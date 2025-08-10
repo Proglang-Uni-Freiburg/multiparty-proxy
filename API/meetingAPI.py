@@ -64,6 +64,9 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int:
     # one: transform to scr
     current_json = await request.json()
     transform(current_json, types, output_dir="API/protocols")
+    # join dicts of schemas of builtin and custom types into one dict
+    merged_types = types[0].copy()
+    merged_types.update(types[1])
 
     # two: check if protocol is well-formed
     try:
@@ -84,7 +87,7 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int:
     actors = [(role.name, role.alias) for role in meeting.roles]
     def run_proxy():
         import asyncio
-        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, types))
+        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, merged_types))
     thread = threading.Thread(target=run_proxy, daemon=True)
     thread.start()
     proxy_threads[meeting.protocol] = thread

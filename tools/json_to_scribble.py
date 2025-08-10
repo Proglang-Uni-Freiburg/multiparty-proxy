@@ -14,12 +14,14 @@ def json_to_scribble_func(proto, schemas):
     lines.append(f"module {module_name};")
     lines.append("")
 
-     # Add builtin type declarations
-     # TODO: Add a marker later for custom vs builtin
-    builtin_types = []
-    for schema in schemas.keys():
-        builtin_types.append(f'type <builtin> "{schema}" from "builtin" as {schema};')
-    lines.extend(builtin_types)
+    # Add builtin type declarations
+    all_types = []
+    for schema in schemas[0].keys(): # for basic python types
+        all_types.append(f'type <builtin> "{schema}" from "builtin" as {schema};')
+    if schemas[1]: # there could be no custom types
+        for schema in schemas[1].keys(): # for custom types
+            all_types.append(f'type <custom> "{schema}" from "custom" as {schema};')
+    lines.extend(all_types)
     lines.append("")
 
     roles = ", ".join([f'role {r["name"]} as {r["alias"]}' for r in proto["roles"]])

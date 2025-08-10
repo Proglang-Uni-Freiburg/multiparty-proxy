@@ -6,7 +6,7 @@ import jsonschema
 from pydantic import TypeAdapter
 
 
-def create_type_checker(schema_list)-> dict:
+def create_type_checker(schema_list)-> tuple[dict, dict]:
     '''
     Creates a dict of JSON schemas (type_name: json_schema) against which a session can check payload types comply.
 
@@ -14,27 +14,29 @@ def create_type_checker(schema_list)-> dict:
             schema_list(): list of schemas defined by the user, if any
 
         Returns:
-            A dict of JSON schemas.
+            A tuple of type :schema dicts. The first dict is for builtin basic python types and the seconf for custom schemas that are sent to the API.
     '''
     
-    schemas = {} # initialize dict
+    # initialize dicts
+    basic_schemas = {}
+    custom_schemas = {}
 
     # first define the basic python types
-    schemas["int"] = TypeAdapter(int).json_schema()
-    schemas["float"] = TypeAdapter(float).json_schema()
-    schemas["bool"] = TypeAdapter(bool).json_schema()
-    schemas["str"] = TypeAdapter(str).json_schema()
-    schemas["list"] = TypeAdapter(list).json_schema()
-    schemas["dict"] = TypeAdapter(dict).json_schema()
-    schemas["tuple"] = TypeAdapter(tuple).json_schema()
-    schemas["none"] = TypeAdapter(None).json_schema()
+    basic_schemas["int"] = TypeAdapter(int).json_schema()
+    basic_schemas["float"] = TypeAdapter(float).json_schema()
+    basic_schemas["bool"] = TypeAdapter(bool).json_schema()
+    basic_schemas["str"] = TypeAdapter(str).json_schema()
+    basic_schemas["list"] = TypeAdapter(list).json_schema()
+    basic_schemas["dict"] = TypeAdapter(dict).json_schema()
+    basic_schemas["tuple"] = TypeAdapter(tuple).json_schema()
+    basic_schemas["none"] = TypeAdapter(None).json_schema()
 
     # then define the custom ones if any
     if schema_list:
         for new_schema in schema_list:
-            schemas[new_schema.get("title")] = new_schema # title is name of type in JSON schemas
+            custom_schemas[new_schema.get("title")] = new_schema # title is name of type in JSON schemas
     
-    return schemas
+    return (basic_schemas, custom_schemas)
 
 def check_payload(msg, expected:str, schema_dict) -> bool:
     '''
