@@ -3,31 +3,39 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+# import information on sessions
 from session_logic.session_types import *
-import re # for parsing sessions
-
 from session_types import *
 
+# for checking patterns in lines
 import re
 
-
-
-#-- String <--> Session Parsers --------------------------------------------------------
+#-- Scribble Protocol scr file -> Session Parser --------------------------------------------------------
 
 def scr_into_session(path_to_scr) -> Session:
+    '''
+    Creates a Session object based on a projected Scribble local protocol.
+
+        Args:
+            path_to_scr(): the path to the scr file that contains the Scribble local protocol to be parsed
+
+        Returns:
+            A Session object, that might have other sessions chained by using the sessions' 'cont' property.
+    '''
+
+    # extract lines from scr file
     with open(path_to_scr, 'r') as file:
         lines = file.readlines()
 
-
-    doing:list[(Session, int)] = []
-    one_ses:Session = None
+    # initialize vars that will help us parse
+    doing:list[(Session, int)] = [] # for open rec and choice sessions
+    one_ses:Session = None # session we will return at end, from which the chaining of sessions with cont starts
     actual_ses:Session = None
 
-    # for line in lines:
     while lines:
         line = lines[0]
  
-        # skip types etc for now
+        # possible types will be passed on as a schema from API to proxy so we don't need the type definitions here, so we skip them
         if line.startswith(("type", "module", "local")):
             lines = lines[1:]
             continue
@@ -37,6 +45,7 @@ def scr_into_session(path_to_scr) -> Session:
             lines = lines[1:]
             continue
 
+        # TODO: Find a way to make code shorter, as some things are repeated a lot
         # choice
         elif "at" in line:
             pattern = r"choice at (\w+)"
@@ -46,7 +55,7 @@ def scr_into_session(path_to_scr) -> Session:
                 # print(f"defining actor for choice: {actor}") # debug
                 current_choice = Choice(actor, [], None)
                 if not doing: # if not inside any rec or choice
-                    if one_ses:
+                    if one_ses: # if it is not the first session in the protocol
                         actual_ses.cont = current_choice
                         if isinstance(actual_ses, Choice):
                             actual_ses.update_conts()
@@ -54,14 +63,15 @@ def scr_into_session(path_to_scr) -> Session:
                     else:
                         one_ses = current_choice
                         actual_ses = one_ses
-                elif isinstance(doing[-1][0], Rec):
+                elif isinstance(doing[-1][0], Rec): # if inside a rec
                     doing[-1][0].actions.append(current_choice)
-                elif isinstance(doing[-1][0], Choice):
+                elif isinstance(doing[-1][0], Choice): # if inside a choice
+                     # TODO: better explanation of this process
                     choice = doing[-1][0]
                     branch = doing[-1][1]
 
                     # If we’ve never set alternatives at all, start with one empty branch
-                    if choice.alternatives is None:
+                    if choice.alternatives is None: # TODO: see if I can change this by just using [[]] when initializing choice
                         choice.alternatives = [[]]
 
                     # If this branch index is beyond current length, extend with empty lists
@@ -184,6 +194,7 @@ def scr_into_session(path_to_scr) -> Session:
                     doing[-1][0].actions.append(Ref(name))
                 if isinstance(doing[-1][0], Choice):
                     if doing[-1][0].alternatives is not None:
+                        # -1 gets (Choice, Branch), so the [1] is to know in which Choice branch we are adding Sessions
                         doing[-1][0].alternatives[doing[-1][1]].append(Ref(name))
                     else:
                         doing[-1][0].alternatives = [[Ref(name)]]
@@ -204,13 +215,12 @@ def scr_into_session(path_to_scr) -> Session:
             if len(lines) == 1:
                 actual_ses.cont = End()
             elif "or" in lines[1]:
-                lines = lines[1:]
+                lines = lines[1:] # go to next line, consider the actual line as parsed
                 continue # because that just means we are closing one option in choice before going to the next
             if doing:
                 if doing:
-                    # trigger function that joins actions with cont
-                    doing[-1][0].update_conts()
-                    if isinstance(doing[-1][0], Choice):
+                    doing[-1][0].update_conts() # trigger function that joins actions with cont
+                    if isinstance(doing[-1][0], Choice): # for choice, add actors to list of actors mentioned in that choice
                         doing[-1][0].update_actors_involved()
                     doing.pop()
             # otherwise we can just skip it
@@ -219,7 +229,7 @@ def scr_into_session(path_to_scr) -> Session:
     return one_ses
     
     
-# define custom exceptions for parsing errors
+# -- define custom exceptions for parsing errors ------------------------------------------------------------------------------------
 class ParsingError(Exception):
     """Exception raised for errors in parsing"""
     def __init__(self, message:str="Parsing failed"):

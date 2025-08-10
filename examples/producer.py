@@ -36,9 +36,7 @@ async def ws_client(port):
                 print(f"Consumer is offering {propose}. Accept? Write Yes, No, or Propose: ")
                 user_accept = input()
                 if user_accept == "Yes": # choose branch 0
-                    print("About to send 0") # debug
                     await ws.send(json.dumps(0))
-                    print("Technically sent 0") # debug
                     # await asyncio.sleep(3)
                     await ws.send(json.dumps(None)) # accept
                     # await asyncio.sleep(3)

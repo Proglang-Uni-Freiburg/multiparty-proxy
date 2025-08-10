@@ -1,36 +1,28 @@
-# scribble_tools.py
+# to access other files in the project
 import sys
 from pathlib import Path
-
-# Set project root as two levels up from this file
-
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "scribble_python" / "src"
 PARSER_DIR = SRC / "run" / "parser"
 SCRIBBLE_SRC = SRC / "scribble"
-
-# Add src to sys.path so you can import scribble.main
 sys.path.insert(0, str(SRC))
 
 from scribble.main import main as _scribble_main
 
-# Add src to sys.path so you can import scribble.main
-sys.path.insert(0, str(SRC))
 
-def check_well_formedness(scr_path: str, extra_import_paths=None) -> None:
-    """
-    Raise SystemExit if scr_path isn’t well-formed (incl. reachability).
-    Mirrors `scribblec -ip … scr_path`.
-    """
+def check_well_formedness(scr_path: str) -> None:
+    '''
+    Checks a Scribble protocol is written correctly by using the official Scribble well-formedness checker code.
+
+        Args:
+            scr_path(): where the scr file of the protocol we want to check can be found
+    '''
     old_argv = sys.argv.copy()
     try:
         argv = ["scribblec",
                 "-ip", str(PARSER_DIR),
                 "-ip", str(SCRIBBLE_SRC),
                ]
-        if extra_import_paths:
-            for p in extra_import_paths:
-                argv += ["-ip", str(p)]
         argv += [str(scr_path)]
         sys.argv[:] = argv
         try:
@@ -44,23 +36,23 @@ def project_protocol(
     scr_path: str,
     full_global: str,
     role: str,
-    output_dir: str,
-    extra_import_paths=None
+    output_dir: str
 ) -> None:
-    """
-    Run full pipeline *including* projection.
-    Mirrors:
-      scribblec -ip … scr_path -project full_global role -o output_dir
-    """
+    '''
+    Using the official Scribble code to project a protocol and create a scr file with the local protocol corresponding to a specific actor.
+
+        Args:
+            scr_path(): where the scr file of the global protocol can be found
+            full_global(): name of the protocol we will write on the file, according to Scribble specifications
+            role(): name of the role of the actor for which we want to make a local protocol
+            output_dir(): where to write the scr file with the protocol to
+    '''
     old_argv = sys.argv.copy()
     try:
         argv = ["scribblec",
                 "-ip", str(PARSER_DIR),
                 "-ip", str(SCRIBBLE_SRC),
                ]
-        if extra_import_paths:
-            for p in extra_import_paths:
-                argv += ["-ip", str(p)]
         argv += [str(scr_path),
                  "-project", full_global, role,
                  "-o", output_dir]
@@ -70,6 +62,6 @@ def project_protocol(
         sys.argv[:] = old_argv
 
 
-class WellFormednessError(Exception):
+class WellFormednessError(Exception): # TODO: write properly
     """Raised when a Scribble protocol is not well-formed."""
     pass

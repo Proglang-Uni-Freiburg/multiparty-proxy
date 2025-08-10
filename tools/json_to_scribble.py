@@ -1,15 +1,21 @@
-import json
-import sys
-import os
+import os # to find file
 
 def json_to_scribble_func(proto, schemas):
+    '''
+    Creates a scr file with a global Scribble protocol based on a JSON describing said protocol.
+
+        Args:
+            proto(): the JSON body that describes the protocol
+            schemas(): a dict* that contains all the custom types in a session (protocol) and the JSON schemas that describe them
+    '''
     lines = []
     # Use protocol name as module name
     module_name = proto["protocol"]
     lines.append(f"module {module_name};")
     lines.append("")
 
-     # Add builtin type declarations -> add a marker later for custom vs builtin
+     # Add builtin type declarations
+     # TODO: Add a marker later for custom vs builtin
     builtin_types = []
     for schema in schemas.keys():
         builtin_types.append(f'type <builtin> "{schema}" from "builtin" as {schema};')
@@ -48,7 +54,15 @@ def walk_body(body, indent=1):
     return lines
 
 
-def transform(proto, schemas, output_dir=None):
+def transform(proto, schemas, output_dir):
+    '''
+    Creates a scr file with a global Scribble protocol based on a JSON describing said protocol.
+
+        Args:
+            proto(): the JSON body that describes the protocol
+            schemas(): a dict* that contains all the custom types in a session (protocol) and the JSON schemas that describe them
+            output_dir: where scr file we be stored at
+    '''
     scribble_code = json_to_scribble_func(proto, schemas)
     protocol_name = proto["protocol"]
     file_name = f"{protocol_name}.scr"
@@ -58,6 +72,7 @@ def transform(proto, schemas, output_dir=None):
     else:
         file_path = file_name
 
+    # debug
     with open(file_path, "w") as f:
         f.write(scribble_code)
     print(f"Scribble protocol written to {file_path}")

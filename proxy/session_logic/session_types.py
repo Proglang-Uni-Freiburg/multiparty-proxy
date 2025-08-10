@@ -1,10 +1,9 @@
-from typing import Dict
 from dataclasses import dataclass # so that @dataclass(frozen=true) can be used
 
 # -- define session components "dir" and "label" --------------------------------------------------------------------------
 class Dir:
     def __init__(self, dir: str):
-        self.dir = dir # only send or recv
+        self.dir = dir # TODO: make only "to" and "from"
 
     # to make it work with session to string parser
     def __str__(self):
@@ -21,12 +20,12 @@ class Label:
 # -- define session and session types ---------------------------------------------------------------------------------
 class Session:
     def __init__(self, kind: str):
-        self.kind = kind # options: message (would be single), choice, rec (recursive)
+        self.kind = kind # options: message (would be single), choice, rec (recursive), ref (reference to a recursive one)
 
 @dataclass
 class Message(Session):
     def __init__(self, dir:Dir, name:Label, actor:str, payload:str, cont:Session):
-        #!: some messages might say same name but be from/to different actors
+        #!: some messages might have the same name but be from/to different actors amd have different payloads
         super().__init__("single")
         self.label = name
         self.dir = dir
@@ -36,7 +35,7 @@ class Message(Session):
 
 @dataclass
 class Choice(Session):
-    # actor is for "choice at __" -> check if it is self
+    # actor is for "choice at __"
     def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session, actors_involved:list[str]=[]):
         super().__init__("choice") # kind
         self.actor = actor # actor that chooses which branch to take
@@ -45,12 +44,17 @@ class Choice(Session):
         self.actors_involved = actors_involved # initialize and will later be rewritten
 
     def update_conts(self):
+        """
+        Joins all sessions in a choice alternatives 'set' together by defining their 'conts'.
+
+        This does not apply to the last one, that need to remain as a None; that way we know we have to go back to choice,
+        close it and go to its cont.
+        """
         for item in self.alternatives:
             # blocks of actions
-            for i in range(0, len(item) - 1): # all except the last one
+            for i in range(0, len(item) - 1): # all except the last one in each "set" of options
                 if not isinstance(item, Ref):
                     item[i].cont = item[i+1]
-        # last item in each action block cont should be None -> that way we know we have to go back to choice, close it and go to its cont
     
     def update_actors_involved(self):
         actors = []
@@ -61,8 +65,6 @@ class Choice(Session):
                         actors.append(i.actor)
         self.actors_involved = actors
 
-
-
 @dataclass
 class Rec(Session):
     def __init__(self, label, actions: list[Session], cont:Session): # should Label be there? How to label?
@@ -71,20 +73,22 @@ class Rec(Session):
         self.actions = actions
         self.cont = cont
     
-    # should test that it works ok!
     def update_conts(self):
+        """
+        Joins all sessions in the session's actions element together by defining their 'conts'.
+
+        This does not apply to the last one, that need to remain as a None; that way we know we have to go back to
+        close the Rec session and go to its cont.
+        """
         for i in range(0, len(self.actions) - 1): # is -1 ok?
             if not isinstance(self.actions[i], Ref):
                 self.actions[i].cont = self.actions[i+1]
-        # last one's cont should be None -> that way we know we have to go back to rec, close it and go to its cont
-    
-
         
 @dataclass
 class Ref(Session):
     def __init__(self, name: str):
         super().__init__("ref")
-        self.name = name
+        self.name = name # name of Rec session we are referencing
         
 @dataclass
 class End(Session):

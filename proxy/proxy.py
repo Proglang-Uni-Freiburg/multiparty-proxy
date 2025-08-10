@@ -1,45 +1,93 @@
-import argparse
-import asyncio
+# websockets imports
 import websockets
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets server
-from websockets.legacy.client import WebSocketClientProtocol # for websockets client
-import json
-from typing import Any
+from websockets.legacy.client import WebSocketClientProtocol # for websockets client # TODO: see if we use this
 
+# to be able to use modules from other files in the project
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+# imports from other files in project
 from scribble_python.wf_checker import project_protocol
-
 from proxy.session_logic.session_handler import *
 from proxy.session_logic.session_parsers import *
 from proxy.session_logic.type_validation import *
 
+# other imports
+import json
+import asyncio # for creating asynchronous tasks, events, queues, etc.
+
+# -- queues for sending/receiving messages in sessions ------------------------------------------------------------------
+async def receiving_queue(actor: str, ws,
+                      queue: asyncio.Queue[str]):
+    '''
+    Creates and enables access to a queue where all messages received from an actor through their websocket are stored.
+
+        Args:
+            actor(str): name of the session actor #TODO: what was formal name of actor in Scribble?
+            ws(): websocket linked with said actor
+            queue: queue object with which messages are stored and received
+    '''
+    try:
+        async for msg in ws: # does ws.recv() and extracts message from it
+            await queue.put(msg)
+    except Exception as e:
+        print(f"Problem with receiving queue for {actor}: {e}") # TODO: raise instead of print
+
+async def sending_queue(actor: str, ws,
+                      queue: asyncio.Queue[str]):
+    '''
+    Creates and enables access to a queue where all messages to be sent to the actor are stored.
+
+    WARNING: They are however not sent; we properly send them in the session handler.
+
+        Args:
+            actor(str): name of the session actor #TODO: what was formal name of actor in Scribble?
+            ws(): websocket linked with said actor
+            queue: queue object with which messages are stored
+    '''
+    try:
+        while True:
+            msg = await queue.get()
+    except Exception as e:
+        print(f"Problem with sending queue for {actor}: {e}") # TODO: raise instead of print
+
+
+# -- actor logic for a meeting -------------------------------------------------------------------------------------------
 def project_actors(actors:list[str], protocol_name: str):
+    '''
+    Creates a series of scr files in the protocols folder in the proxy that contains a Scribble projected local protocol for each
+    of the actors in a meeting. 
+
+        Args:
+            actors(list[str]): list of names of actors in protocol
+            protocol_name(name): name of protocol (aka meeting) so we can locate its scr in the API folder
+    '''
     for a in actors:
         project_protocol(
         scr_path=f"API/protocols/{protocol_name}.scr",
-        full_global=f"{protocol_name}.{protocol_name}", # for now because protocol + module but maybe change later
+        full_global=f"{protocol_name}.{protocol_name}",
         role=a,
         output_dir=f"proxy/protocols/{protocol_name}"
     )
 
-"""
-def make_session(actor:str, protocol:str):
-    # 1. parse projected protocol of actor to a session
-    # projected_scr_into_session(actor)) # from session_parsers
-        # name of .scr file will be: protocol_name/actor_name.scr/{protocol_name}_{protocol_name}_{actor_name}.scr
-        ses = create_session(actor, protocol) # define later
-    # 2. go through elements in session
-    handle_session(ses:Session, actor_socket:)
-"""
+async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event):
+    '''
+    When a socket connects to proxy, check if they want to connect as an actor in the meeting, then initialize and handle a session for said actor.
 
-async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event):
-    """
-    Add description
-    """
-    # stage 1 declare, wait for actors to join
+        Args:
+            clientSocket(): actor socket that is connected to the proxy
+            path(): needed to use proxy in "serve" mode
+            actor_slots(dict): dict with whcih one can find the websockets port assigned to an actor (actor: port)
+            actors_complete(): list of all actors along with their aliases (the shortened version of their names that is used in the projected Scribble protocol)
+            protocol_name(str): name of the protocol (aka meeting) the proxy is regulating
+            incoming_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
+            outgoing_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
+            types: JSON schemas of all the types, referenced by the name of the type
+            all_connected(): event that lets handler know when all actors have joined the meeting and the sessions can start
+    '''
+    # declare an actor and wait for others to join
     try:
         # register actor
         actor_name = json.loads(await clientSocket.recv())
@@ -47,61 +95,51 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
             await clientSocket.send(json.dumps("This actor does not exist in this meeting."))
             return await clientSocket.close()
         actor_slots[actor_name] = clientSocket
-        print(f"{actor_name} joined the meeting.")
+        print(f"In meeting {protocol_name}: {actor_name} joined the meeting.") # debug
         
         # create session based on protocol
         actor_ses = scr_into_session(f"proxy/protocols/{protocol_name}/{protocol_name}_{protocol_name}_{actor_name}.scr")
 
         # make receiving queue
-        actor_alias = next(alias for name, alias in actors_complete if name == actor_name)
-
-        asyncio.create_task(receiving_queue(actor_alias, clientSocket, incoming_queues[actor_alias]))
-        # asyncio.create_task(sending_queue(actor_alias, clientSocket, outgoing_queues[actor_alias]))
+        actor_alias = next(alias for name, alias in actors_complete if name == actor_name) # TODO: maybe declare aliases at start or even before the handler, in main
+        asyncio.create_task(receiving_queue(actor_alias, clientSocket, incoming_queues[actor_alias])) # so that the receiving queue can use the websockets recv function
 
 
-        # fire the event if we’re complete
+        # fire the event if all actors have joined
         if all(actor_slots[a] for a in actor_slots):
             all_connected_evt.set()
-
         # wait for everybody
         await all_connected_evt.wait()
-
-        await clientSocket.send(json.dumps("502: All actors have joined session."))
+        await clientSocket.send(json.dumps("502: All actors have joined session.")) # TODO: change depending on error definitions
 
         # start tracking session
         try:
-            # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probbaly do in main proxy instead of actor handler
-            alias_slots = {alias: actor_slots[name] for name, alias in actors_complete}
+            # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probaly do in main proxy instead of actor handler
+            alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
             await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types) # def session + action name
         except websockets.ConnectionClosed:
             print(f"An error has been encountered")
 
     except websockets.ConnectionClosed:
-        pass
+        pass # TODO: exceptions or oks based on what closes connection
     finally:
         # cleanup
+        # TODO: make better system
         if actor_slots.get(actor_name) is clientSocket:
             actor_slots[actor_name] = None
             print(f"Actor {actor_name} disconnected")
 
-async def receiving_queue(actor: str, ws,
-                      queue: asyncio.Queue[str]):
-    try:
-        async for msg in ws: # maybe rewrite to make it more understandable
-            await queue.put(msg)
-    except Exception as e:
-        print(f"Problem with receiving queue for {actor}: {e}")
+# -- initialize ------------------------------------------------------------------------------------------------------------------------------------
+async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types):
+    '''
+    Opens proxy for a meeting and calls functions to connect actors and handle their sessions.
 
-async def sending_queue(actor: str, ws,
-                      queue: asyncio.Queue[str]):
-    try:
-        while True:
-            msg = await queue.get()
-            print(f"{actor} sending {json.loads(msg)} through sending queue") # debug
-    except Exception as e:
-        print(f"Problem with receiving queue for {actor}: {e}")
-
-async def main_proxy(proxy_port: int, actors_complete, protocol_name: str, types):
+        Args:
+            proxy_port(int): number of the port the proxy is serving from
+            actors_complete(): __ of actors and their aliases
+            protocol_name(str): Name of protocol (meeting)
+            types(): all payload types that will come up in the meeting along with their JSON schemas
+    '''
     print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
     actors = [name for name, alias in actors_complete]
     project_actors(actors, protocol_name) # make necessary projections
@@ -109,12 +147,11 @@ async def main_proxy(proxy_port: int, actors_complete, protocol_name: str, types
     aliases = [alias for _n,alias in actors_complete]
     incoming_queues = { alias: asyncio.Queue() for alias in aliases } # from actor
     outgoing_queues = { alias: asyncio.Queue() for alias in aliases } # to actor
-
     
-    all_joined_evt = asyncio.Event()
+    all_joined_evt = asyncio.Event() # will be fired when all actors have joined
 
     # wait for actors to join
-    print("Waiting for all actors to join...")
+    print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
     async with serve(
         lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt),
         "localhost",
