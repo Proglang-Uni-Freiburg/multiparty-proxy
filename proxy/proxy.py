@@ -17,6 +17,8 @@ from proxy.session_logic.type_validation import *
 # other imports
 import json
 import asyncio # for creating asynchronous tasks, events, queues, etc.
+import httpx # for sending API requests
+import shutil # to erase scr files of protocol once meeting is done
 
 # -- queues for sending/receiving messages in sessions ------------------------------------------------------------------
 async def receiving_queue(actor: str, ws,
@@ -149,6 +151,7 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types)
             protocol_name(str): Name of protocol (meeting)
             types(): all payload types that will come up in the meeting along with their JSON schemas
     '''
+    #TODO: do try and clean up maybe
     print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
     actors = [name for name, alias in actors_complete]
     project_actors(actors, protocol_name) # make necessary projections
@@ -173,5 +176,15 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types)
         # await asyncio.Future() # so that server doesn't close
         # close proxy gracefullly
         await all_done_evt.wait() # close proxy once all actors are disconnected
-        print("All actors have disconnected from the meeting. Shutting down proxy in 5 seconds ...")
-        await asyncio.sleep(5)
+        print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")
+        await asyncio.sleep(5) # for debug purposes
+        # erase protocol from folder
+        shutil.rmtree(f"proxy/protocols/{protocol_name}", ignore_errors=False, onerror=None)
+        # close meeting properly by sending a delete request to the API
+        async with httpx.AsyncClient() as client:
+            resp = await client.delete(f"http://localhost:8000/meetings/{protocol_name}")
+            if resp.status_code == 204:
+                print(f"Successfully deleted meeting {protocol_name} from API")
+            else:
+                print(f"Failed to delete meeting {protocol_name}: {resp.status_code} {resp.text}")
+        return

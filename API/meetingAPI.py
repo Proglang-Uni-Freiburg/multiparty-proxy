@@ -112,17 +112,16 @@ async def createMeetingReq(meeting_name: str, schema:Mapping[str, Any]= Body(...
     meeting_types[meeting_name].append(schema)
 
 # for deleting a meeting once it is done
-# TODO: use in proxies to close them off
 @app.delete("/meetings/{meeting_name}")
 async def deleteMeetingReq(meeting_name: str):
     if meeting_name not in meetingDict:
         raise HTTPException(404, "Not found")
-    print(f"deleting meeting {meeting_name}") # debug
+    print(f"Deleting meeting {meeting_name}...") # debug
     del meetingDict[meeting_name]
     del meeting_info[meeting_name]
     del meeting_types[meeting_name]
+    os.remove(f"API/protocols/{meeting_name}.scr")
     return Response(status_code=status.HTTP_204_NO_CONTENT) # TODO: check this is the right thing to return
-    # should return ok but idk how it works
 
 # TODO: determine if this is necessary
 """
