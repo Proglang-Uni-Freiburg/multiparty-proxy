@@ -72,7 +72,7 @@ def project_actors(actors:list[str], protocol_name: str):
         output_dir=f"proxy/protocols/{protocol_name}"
     )
 
-async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event):
+async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event, all_done_evt: asyncio.Event):
     '''
     When a socket connects to proxy, check if they want to connect as an actor in the meeting, then initialize and handle a session for said actor.
 
@@ -102,8 +102,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
 
         # make receiving queue
         actor_alias = next(alias for name, alias in actors_complete if name == actor_name) # TODO: maybe declare aliases at start or even before the handler, in main
-        asyncio.create_task(receiving_queue(actor_alias, clientSocket, incoming_queues[actor_alias])) # so that the receiving queue can use the websockets recv function
-
+        recv_task = asyncio.create_task(receiving_queue(actor_alias, clientSocket, incoming_queues[actor_alias])) # so that the receiving queue can use the websockets recv function
 
         # fire the event if all actors have joined
         if all(actor_slots[a] for a in actor_slots):
@@ -113,21 +112,31 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         await clientSocket.send(json.dumps("502: All actors have joined session.")) # TODO: change depending on error definitions
 
         # start tracking session
-        try:
-            # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probaly do in main proxy instead of actor handler
-            alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
-            await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types) # def session + action name
-        except websockets.ConnectionClosed:
-            print(f"An error has been encountered")
-
-    except websockets.ConnectionClosed:
-        pass # TODO: exceptions or oks based on what closes connection
+        # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probaly do in main proxy instead of actor handler
+        alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
+        ending = await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types) # def session + action name
+        if ending == End():
+            # close gracefully
+            await clientSocket.close(code=1000, reason="Session ended successfully")
+            await clientSocket.wait_closed()
+            print(f"{actor_name}'s session is finished and the actor has been disconnected from the session.")
+            recv_task.cancel() # close receiving queue task
+            return
+    
+    # handle ok disconnections
+    except (websockets.ConnectionClosed, websockets.ConnectionClosedError, websockets.ConnectionClosedOK): # TODO: fix ConenctionClosed positional arguments
+        print(f"An error has been encountered in {actor_name} and its connection was closed.")
+    except (SchemaValidationError) as e: # TODO: raise inside handler
+        print(f"Type mismatch {e} in {actor_name}. Actor dsiconnected.")
+    # except TimeoutError as e: # TODO: implement later
+        # print(f"{e}")
+    except Exception as e:
+        print(f"Unexpected error in proxy: {e}")
     finally:
-        # cleanup
-        # TODO: make better system
         if actor_slots.get(actor_name) is clientSocket:
             actor_slots[actor_name] = None
-            print(f"Actor {actor_name} disconnected")
+            if all(actors is None for actors in actor_slots.values()): # if all other actors have disconnected
+                all_done_evt.set() # fire event to close proxy
 
 # -- initialize ------------------------------------------------------------------------------------------------------------------------------------
 async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types):
@@ -149,15 +158,20 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types)
     outgoing_queues = { alias: asyncio.Queue() for alias in aliases } # to actor
     
     all_joined_evt = asyncio.Event() # will be fired when all actors have joined
+    all_done_evt   = asyncio.Event() # will be fired when all actors are disconnected
 
     # wait for actors to join
     print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
     async with serve(
-        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt),
+        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt),
         "localhost",
         proxy_port
     ):
         # once all actors are joined
         await all_joined_evt.wait()
         print("All actors connected. Starting the meeting...")
-        await asyncio.Future() # so that server doesn't close
+        # await asyncio.Future() # so that server doesn't close
+        # close proxy gracefullly
+        await all_done_evt.wait() # close proxy once all actors are disconnected
+        print("All actors have disconnected from the meeting. Shutting down proxy in 5 seconds ...")
+        await asyncio.sleep(5)
