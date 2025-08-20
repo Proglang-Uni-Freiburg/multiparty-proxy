@@ -34,11 +34,15 @@ async def ws_client(port):
                 login = json.loads(await ws.recv())
                 if login not in users:
                     print(f"{login} not in users")
+                    await ws.send(json.dumps("auth"))
                     await ws.send(json.dumps(False))
+                    await ws.send(json.dumps("auth"))
                     await ws.send(json.dumps(False)) # actually will have to reduce to one step later
                 else:
                     print(f"{login} in users")
+                    await ws.send(json.dumps("auth"))
                     await ws.send(json.dumps(True))
+                    await ws.send(json.dumps("auth"))
                     await ws.send(json.dumps(True)) # actually will have to reduce to one step later
 
 

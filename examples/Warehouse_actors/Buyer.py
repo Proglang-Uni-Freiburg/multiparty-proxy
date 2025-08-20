@@ -29,6 +29,7 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
             
             login = input("Username: ")
+            await ws.send(json.dumps("login"))
             await ws.send(json.dumps(login))
             auth = json.loads(await ws.recv())
             match auth:
@@ -42,19 +43,22 @@ async def ws_client(port):
                             "\n Your choice: ")
             match choice_b.lower():
                 case "price":
-                    await ws.send(json.dumps(0)) # send branch index
+                    # await ws.send(json.dumps(0)) # send branch index
+                    await ws.send(json.dumps("req"))
                     req = input("Check price of product: ")
                     await ws.send(json.dumps(req))
                     num = json.loads(await ws.recv())
                     print(f"The product costs {num} per unit.")
                 case "buy":
-                    await ws.send(json.dumps(1)) # send branch index
+                    # await ws.send(json.dumps(1)) # send branch index
+                    await ws.send(json.dumps("buy"))
                     product = input("Name of product you want to buy: ")
                     await ws.send(json.dumps(product))
                     deliver = json.loads(await ws.recv())
                     print(f"Your product will be delivered to the following shop: {deliver}")
                 case "quit":
-                    await ws.send(json.dumps(2)) # send branch index
+                    # await ws.send(json.dumps(2)) # send branch index
+                    await ws.send(json.dumps("quit"))
                     await ws.send(json.dumps(None))
                     print("Goodbye!")
 

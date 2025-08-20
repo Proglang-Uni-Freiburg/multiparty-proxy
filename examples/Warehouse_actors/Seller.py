@@ -49,6 +49,7 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
             
             login = await ws.recv()
+            await ws.send(json.dumps("login"))
             await ws.send(login) # send to Authenticator, already in JSON
             auth = json.loads(await ws.recv())
             match auth:
@@ -58,20 +59,22 @@ async def ws_client(port):
                     print("The user has not been authenticated. Proceed with caution.")
             choice_b = json.loads(await ws.recv())
             match choice_b:
-                case 0:
+                case "req":
                     req = json.loads(await ws.recv())
                     print(f"Checking price of product: {req}")
                     price = products_prices[req]
+                    await ws.send(json.dumps("price"))
                     await ws.send(json.dumps(price))
                     print(f"The product costs {price} per unit.")
-                case 1:
+                case "buy":
                     product = json.loads(await ws.recv())
                     print(f"Buying {product} ...")
                     products_available[product] =- 1 
                     location = products_shops[product][0]
                     print(f"Send product to {location}")
+                    await ws.send(json.dumps("deliver"))
                     await ws.send(json.dumps(location))
-                case 2:
+                case "quit":
                     await ws.recv()
 
 

@@ -36,6 +36,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
     # initialize
     actual_session = ses
     doing:list[Session] = [] # TODO: actually restrict sessions inside to only be choice or rec
+    last_msg_name = None # so that labels of message don't need to be repeated twice if actor did a choice
+
     try:
         while (not isinstance(actual_session, End)):
 
@@ -56,6 +58,13 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                 return End()
                         case ("to"): # send message to someone else
                             try:
+                                if last_msg_name: # message name was received by the choice block
+                                    msg_name = last_msg_name
+                                    last_msg_name = None # reset
+                                else:
+                                    msg_name = json.loads(await recv_queues[name].get())
+                                coincides = (msg_name == actual_session.label.label)
+                                print(f"message {msg_name} coincides with expected {actual_session.label.label}?: {coincides}") # for debugging
                                 msg = await recv_queues[name].get()  # get message from sender
                                 print(f"checking payload: {check_payload(msg, actual_session.payload, types)}") # for now print but later raise error if it returns False
                                 await send_queues[actual_session.actor].put(msg)  # queue message for recipient (so we can send it to it when it is ready)
@@ -71,9 +80,10 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                     try:
                         # case 1: the actor to whom this session belongs chooses branch
                         if actual_session.actor == name:
-                            # 1: receive branch index
+                            # 1: receive name of first message in seelcted branch
                             branch = await recv_queues[name].get() # is received directly from actor
                             print(f"choice of {name}, chose branch {json.loads(branch)}") # debug
+                            last_msg_name = json.loads(branch)
                             # 2: send to involved parties
                             for act in actual_session.actors_involved:
                                 if act != name:
@@ -81,13 +91,14 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     await send_queues[act].put(branch)
                         # case 2: this actor RECEIVES a branch index
                         else:
-                            print(f"{name} not deciding branch")
                             branch = await send_queues[name].get() # branch will be waiting to be sent in queue
                             await actor_list[name].send(branch) # directly send toa ctor through websockets
 
                         # for both, set sessions
                         doing.append(actual_session)
-                        actual_session = actual_session.alternatives[json.loads(branch)][0] # start with first action, others follow with cont
+                        for maybe_ses in actual_session.alternatives:
+                            if maybe_ses[0].label.label == json.loads(branch):
+                                actual_session = maybe_ses[0] # start with first action, others follow with cont
                     except Exception as e:
                         print(f"choice, {e}, actor fail:{name}") # debug
                         return End()
