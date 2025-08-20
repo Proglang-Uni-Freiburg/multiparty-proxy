@@ -81,6 +81,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     await send_queues[act].put(branch)
                         # case 2: this actor RECEIVES a branch index
                         else:
+                            print(f"{name} not deciding branch")
                             branch = await send_queues[name].get() # branch will be waiting to be sent in queue
                             await actor_list[name].send(branch) # directly send toa ctor through websockets
 

@@ -119,6 +119,12 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
         ending = await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types) # def session + action name
         if ending == End():
+            # mark as finished and check if all finished
+            if actor_slots.get(actor_name) is clientSocket:
+                actor_slots[actor_name] = None
+            if all(actors is None for actors in actor_slots.values()): # if all other actors have disconnected
+                all_done_evt.set() # fire event to close proxy
+            await all_done_evt.wait()
             # close gracefully
             await clientSocket.close(code=1000, reason="Session ended successfully")
             await clientSocket.wait_closed()
@@ -136,10 +142,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
     except Exception as e:
         print(f"Unexpected error in proxy: {e}")
     finally:
-        if actor_slots.get(actor_name) is clientSocket:
-            actor_slots[actor_name] = None
-            if all(actors is None for actors in actor_slots.values()): # if all other actors have disconnected
-                all_done_evt.set() # fire event to close proxy
+        pass
 
 # -- initialize ------------------------------------------------------------------------------------------------------------------------------------
 async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types):

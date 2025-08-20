@@ -49,7 +49,7 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
             
             login = await ws.recv()
-            await ws.send(json.dumps(login)) # send to Authenticator
+            await ws.send(login) # send to Authenticator, already in JSON
             auth = json.loads(await ws.recv())
             match auth:
                 case True:
