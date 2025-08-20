@@ -1,0 +1,28 @@
+module Purchase;
+
+type <builtin> "int" from "builtin" as int;
+type <builtin> "float" from "builtin" as float;
+type <builtin> "bool" from "builtin" as bool;
+type <builtin> "str" from "builtin" as str;
+type <builtin> "list" from "builtin" as list;
+type <builtin> "dict" from "builtin" as dict;
+type <builtin> "tuple" from "builtin" as tuple;
+type <builtin> "none" from "builtin" as none;
+
+global protocol Purchase(role Buyer as B, role Seller as S, role Authenticator as A)
+{
+	login(str) from B to S;
+	login(str) from S to A;
+	auth(bool) from A to S;
+	auth(bool) from A to B;
+	choice at B
+	{
+		req(str) from B to S;
+		price(float) from S to B;
+	} or {
+		buy(str) from B to S;
+		deliver(str) from S to B;
+	} or {
+		quit() from B to S;
+	}
+}

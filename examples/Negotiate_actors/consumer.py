@@ -27,7 +27,7 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
             
             prop = input("Write a number to propose: ")
-            await ws.send(json.dumps(int(prop)))# propose
+            await ws.send(json.dumps(int(prop))) # propose
             # await asyncio.sleep(3)
             rec = True
             while rec:

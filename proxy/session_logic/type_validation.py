@@ -43,7 +43,7 @@ def check_payload(msg, expected:str, schema_dict) -> bool:
     Checks if a payload is of the expected type.
 
         Args:
-            msg(): payload we whose type we want to check
+            msg(): payload whose type we want to check
             expected(): name of the type the session expects the payload to be
             schema_dict(dict): contains all JSON schemas referenced by type
 

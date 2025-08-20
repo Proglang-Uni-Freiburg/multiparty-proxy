@@ -1,0 +1,78 @@
+# to be able to use modules from other files
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+
+# for sending/receiving with proxy + proxy error exceptions
+#from session_logic.helpers import *
+
+import websockets
+import asyncio
+import time # to keep console opened for a bit after code is finished
+import json
+import argparse
+
+ 
+async def ws_client(port):
+    '''
+    Handles connection and sends and receives payloads according to interaction with user.
+    '''
+    try:
+        print("Connecting client...")
+        url = f"ws://127.0.0.1:{port}" # 7891 is proxy port
+
+        # Connect to the proxy/server
+        async with websockets.connect(url) as ws:
+            await ws.send(json.dumps("Buyer"))
+            await ws.recv() # will get when all actors join
+            
+            print(f"All actors have joined. Initializing programm...")
+            
+            login = input("Username: ")
+            await ws.send(json.dumps(login))
+            auth = json.loads(await ws.recv())
+            match auth:
+                case True:
+                    print(f"Welcome {login}!")
+                case False:
+                    print("Your username is incorrect or it does not have the necessary permissions to access the system.")
+            choice_b = input("Please choose one of the following options:\n Price (to ask the price of a product)" \
+                            "\n Buy (to buy a product)"
+                            "\n Quit (to leave the session)"
+                            "\n Your choice: ")
+            match choice_b.lower():
+                case "price":
+                    await ws.send(json.dumps(0)) # send branch index
+                    req = input("Check price of product: ")
+                    await ws.send(json.dumps(req))
+                    num = json.loads(await ws.recv())
+                    print(f"The product costs {num} per unit.")
+                case "buy":
+                    await ws.send(json.dumps(1)) # send branch index
+                    product = input("Name of product you want to buy: ")
+                    await ws.send(json.dumps(product))
+                    deliver = json.loads(await ws.recv())
+                    print(f"Your product will be delivered to the following shop: {deliver}")
+                case "quit":
+                    await ws.send(json.dumps(2)) # send branch index
+                    await ws.send(json.dumps(None))
+                    print("Goodbye!")
+
+
+    except websockets.exceptions.ConnectionClosed:
+        print(f"Connection lost, most likely due to a timeout")
+    #except ProxyError as e:
+        #print(e)
+    except Exception as e:
+        print(f"Unexpected error {e}")
+    finally:
+        print("Closing client in 5 seconds...")
+        time.sleep(5)
+        exit()  
+
+#-- Start the client code ------------------------------------------------------------------------------------------
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--port", default="7891", help="Proxy port number")
+    args = parser.parse_args()
+    asyncio.run(ws_client(args.port))

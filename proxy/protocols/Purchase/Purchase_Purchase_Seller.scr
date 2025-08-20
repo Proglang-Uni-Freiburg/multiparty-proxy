@@ -1,0 +1,39 @@
+module Purchase_Purchase_Seller;
+
+
+
+type <builtin>  "int" from "builtin" as int;
+
+type <builtin>  "float" from "builtin" as float;
+
+type <builtin>  "bool" from "builtin" as bool;
+
+type <builtin>  "str" from "builtin" as str;
+
+type <builtin>  "list" from "builtin" as list;
+
+type <builtin>  "dict" from "builtin" as dict;
+
+type <builtin>  "tuple" from "builtin" as tuple;
+
+type <builtin>  "none" from "builtin" as none;
+
+local protocol Purchase_Seller at Seller(role Buyer as B, role Seller as S, role Authenticator as A) {
+login(str) from B;
+login(str) to A;
+auth(bool) from A;
+choice at B
+{
+req(str) from B;
+price(float) to B;
+}
+or
+{
+buy(str) from B;
+deliver(str) to B;
+}
+or
+{
+quit() from B;
+}
+}

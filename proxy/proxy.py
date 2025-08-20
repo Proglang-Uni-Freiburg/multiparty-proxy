@@ -94,6 +94,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         # register actor
         actor_name = json.loads(await clientSocket.recv())
         if actor_name not in actor_slots:
+            print(f"{actor_name} not found") # debug
             await clientSocket.send(json.dumps("This actor does not exist in this meeting."))
             return await clientSocket.close()
         actor_slots[actor_name] = clientSocket
@@ -170,21 +171,25 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types)
         "localhost",
         proxy_port
     ):
-        # once all actors are joined
-        await all_joined_evt.wait()
-        print("All actors connected. Starting the meeting...")
-        # await asyncio.Future() # so that server doesn't close
-        # close proxy gracefullly
-        await all_done_evt.wait() # close proxy once all actors are disconnected
-        print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")
-        await asyncio.sleep(5) # for debug purposes
-        # erase protocol from folder
-        shutil.rmtree(f"proxy/protocols/{protocol_name}", ignore_errors=False, onerror=None)
-        # close meeting properly by sending a delete request to the API
-        async with httpx.AsyncClient() as client:
-            resp = await client.delete(f"http://localhost:8000/meetings/{protocol_name}")
-            if resp.status_code == 204:
-                print(f"Successfully deleted meeting {protocol_name} from API")
-            else:
-                print(f"Failed to delete meeting {protocol_name}: {resp.status_code} {resp.text}")
-        return
+        try: 
+            # once all actors are joined
+            await all_joined_evt.wait()
+            print("All actors connected. Starting the meeting...")
+            # await asyncio.Future() # so that server doesn't close
+            # close proxy gracefullly
+            await all_done_evt.wait() # close proxy once all actors are disconnected
+            print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")
+            await asyncio.sleep(5) # for debug purposes
+            # erase protocol from folder
+            shutil.rmtree(f"proxy/protocols/{protocol_name}", ignore_errors=False, onerror=None)
+            # close meeting properly by sending a delete request to the API
+            async with httpx.AsyncClient() as client:
+                resp = await client.delete(f"http://localhost:8000/meetings/{protocol_name}")
+                if resp.status_code == 204:
+                    print(f"Successfully deleted meeting {protocol_name} from API")
+                else:
+                    print(f"Failed to delete meeting {protocol_name}: {resp.status_code} {resp.text}")
+            print("Stopped serving") # debug
+            return
+        except Exception as e:
+            print(f"proxy exception: {e}")
