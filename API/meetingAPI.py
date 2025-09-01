@@ -4,7 +4,7 @@ import uvicorn
 from pydantic import BaseModel
 
 # for type annotations
-from typing import Any, List, Mapping
+from typing import Any, List, Mapping, Optional
 
 # imports to be able to use functions from other modules in project or access files
 import sys
@@ -34,6 +34,8 @@ class Meeting(BaseModel):
     protocol: str # name of protocol
     roles: List[Role] # actors in protocol
     body: List[Any]  # protocol definition
+    error: Optional[str] = None # type of error (fatal, ignore, handle)
+    # timeout: Optional[int] = None
 
 # dicts for storing meetings info
 meetingDict: dict[str, Meeting] = {} # name of meeting : meeting object
@@ -48,9 +50,19 @@ proxy_threads = {}  # meeting name : thread
 # create a meeting -> register and give back corresponding proxy port
 @app.post("/meetings/", response_model=int)
 async def createMeetingReq(meeting: Meeting, request: Request) -> int:
-    # TODO: check this error works
+    # check no repeated meeting names
     if meeting.protocol in meetingDict:
         raise HTTPException(status_code=409, detail="Meeting already exists")
+    
+    # check if error type was defined and if so, if defined ok; if not, use default
+    if meeting.error:
+        if meeting.error not in ("fatal", "ignore", "handle"):
+            raise HTTPException(status_code=422, detail="Error must be 'ignore', 'fatal' or 'handle'")
+    else:
+        meeting.error = "fatal"
+
+    # if meeting.timeout:
+        # timeout = meeting.timeout
 
     # zero: define types
     print(f"defning meeting protocol: {meeting.protocol}") # debug
@@ -87,7 +99,7 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int:
     actors = [(role.name, role.alias) for role in meeting.roles]
     def run_proxy():
         import asyncio
-        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, merged_types))
+        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, merged_types, meeting.error))
     thread = threading.Thread(target=run_proxy, daemon=True)
     thread.start()
     proxy_threads[meeting.protocol] = thread

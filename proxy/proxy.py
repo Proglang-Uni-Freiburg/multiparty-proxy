@@ -74,7 +74,7 @@ def project_actors(actors:list[str], protocol_name: str):
         output_dir=f"proxy/protocols/{protocol_name}"
     )
 
-async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event, all_done_evt: asyncio.Event):
+async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event, all_done_evt: asyncio.Event, error_mode:str):
     '''
     When a socket connects to proxy, check if they want to connect as an actor in the meeting, then initialize and handle a session for said actor.
 
@@ -145,7 +145,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         pass
 
 # -- initialize ------------------------------------------------------------------------------------------------------------------------------------
-async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types):
+async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types, error_mode:str):
     '''
     Opens proxy for a meeting and calls functions to connect actors and handle their sessions.
 
@@ -170,7 +170,7 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types)
     # wait for actors to join
     print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
     async with serve(
-        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt),
+        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt, error_mode),
         "localhost",
         proxy_port
     ):

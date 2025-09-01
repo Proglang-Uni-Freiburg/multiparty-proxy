@@ -103,6 +103,12 @@ class SchemaValidationError(Exception):
     def __init__(self, message:str="Schema validation failed"):
         self.message = message
         super().__init__(self.message)
+    
+class WrongLabelError(Exception):
+    """Exception raised for errors in schema validation."""
+    def __init__(self, message:str="Wrong message label"):
+        self.message = message
+        super().__init__(self.message)
 
 # for general errors in session
 class SessionError(Exception):

@@ -16,7 +16,7 @@ from typing import Any
 import json
 
 
-async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_queues, types:dict) -> End:
+async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_queues, types:dict, error_mode:str) -> End:
     '''
     Function that receives a session related to an actor, and checks said actor is going through the series of
     sessions as defined by the protocol.
@@ -37,6 +37,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
     actual_session = ses
     doing:list[Session] = [] # TODO: actually restrict sessions inside to only be choice or rec
     last_msg_name = None # so that labels of message don't need to be repeated twice if actor did a choice
+    errors = []
 
     try:
         while (not isinstance(actual_session, End)):
@@ -63,10 +64,26 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     last_msg_name = None # reset
                                 else:
                                     msg_name = json.loads(await recv_queues[name].get())
+                                
+                                # if message name fails
                                 coincides = (msg_name == actual_session.label.label)
-                                print(f"message {msg_name} coincides with expected {actual_session.label.label}?: {coincides}") # for debugging
+                                if not coincides:
+                                    if error_mode == "fatal":
+                                        raise WrongLabelError() # raise exception because if it only returns End() then other actors won't crash
+                                    else: # add to errors anyways. If ignore, then we'll just not use 
+                                        errors.append(f"Wrong label at {actual_session.label.label}, got message name {msg_name}") # TODO: label with right term later
+
                                 msg = await recv_queues[name].get()  # get message from sender
-                                print(f"checking payload: {check_payload(msg, actual_session.payload, types)}") # for now print but later raise error if it returns False
+                                ok_payload = check_payload(msg, actual_session.payload, types)
+                                print(f"checking payload") # debug
+
+                                # if payload validation failed
+                                if not ok_payload:
+                                    if error_mode == "fatal":
+                                        raise SchemaValidationError() # raise exception because if it only returns End() then other actors won't crash
+                                    else: # add to errors anyways. If ignore, then we'll just not use 
+                                        errors.append(f"Schema validation error at {actual_session.label.label}, expected type {actual_session.payload}") # TODO: label with right term later
+                                
                                 await send_queues[actual_session.actor].put(msg)  # queue message for recipient (so we can send it to it when it is ready)
                                 print(f"Message sent by {name} to {actual_session.actor}") # debug
                             except Exception as e:
@@ -80,7 +97,13 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                     try:
                         # case 1: the actor to whom this session belongs chooses branch
                         if actual_session.actor == name:
-                            # 1: receive name of first message in seelcted branch
+
+                            # report back if errors happened
+                            if error_mode == "handle":
+                                actor_list[name].send(json.dumps(errors))
+                                errors = [] # reset errors
+
+                            # 1: receive name of first message in selected branch
                             branch = await recv_queues[name].get() # is received directly from actor
                             print(f"choice of {name}, chose branch {json.loads(branch)}") # debug
                             last_msg_name = json.loads(branch)
@@ -92,7 +115,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                         # case 2: this actor RECEIVES a branch index
                         else:
                             branch = await send_queues[name].get() # branch will be waiting to be sent in queue
-                            await actor_list[name].send(branch) # directly send toa ctor through websockets
+                            await actor_list[name].send(branch) # directly send to actor through websockets
 
                         # for both, set sessions
                         doing.append(actual_session)
