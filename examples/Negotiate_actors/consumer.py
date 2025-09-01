@@ -27,7 +27,9 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
             
             prop = input("Write a number to propose: ")
-            await ws.send(json.dumps(int(prop))) # propose
+            
+            await ws.send(json.dumps("propose"))
+            await ws.send(json.dumps(int(prop)))
             # await asyncio.sleep(3)
             rec = True
             while rec:
@@ -35,17 +37,18 @@ async def ws_client(port):
                 choice_one = json.loads(await ws.recv())
                 print(f"in consumer, received choice of branch from producer, {choice_one}, {type(choice_one)}") # debug
                 match choice_one:
-                    case 0:
+                    case "accept":
                         accept = json.loads(await ws.recv())
                         print("producer has said accepted")
                         p_contact = json.loads(await ws.recv())
                         print(f"Producer's name: {p_contact['name']}")
                         print(f"Producer's email: {p_contact['email']}")
                         # await asyncio.sleep(3)
-                        await ws.send(json.dumps(None)) # confirm; can i send without anything?
-                    case 1:
+                        await ws.send(json.dumps("confirm"))
+                        await ws.send(json.dumps(None)) 
+                    case "reject":
                         reject = json.loads( await ws.recv())
-                    case 2:
+                    case "propose":
                         propose = json.loads(await ws.recv()) # int
                         print(f"Producer is offering {propose}. Accept? Write Yes, No, or Propose: ")
                         user_accept = input()

@@ -117,7 +117,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         # start tracking session
         # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probaly do in main proxy instead of actor handler
         alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
-        ending = await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types) # def session + action name
+        ending = await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types, error_mode) # def session + action name
         if ending == End():
             # mark as finished and check if all finished
             if actor_slots.get(actor_name) is clientSocket:
