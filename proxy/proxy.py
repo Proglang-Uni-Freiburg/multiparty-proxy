@@ -19,6 +19,7 @@ import json
 import asyncio # for creating asynchronous tasks, events, queues, etc.
 import httpx # for sending API requests
 import shutil # to erase scr files of protocol once meeting is done
+import os
 
 # -- queues for sending/receiving messages in sessions ------------------------------------------------------------------
 async def receiving_queue(actor: str, ws,
@@ -155,44 +156,54 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types,
             protocol_name(str): Name of protocol (meeting)
             types(): all payload types that will come up in the meeting along with their JSON schemas
     '''
-    #TODO: do try and clean up maybe
-    print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
-    actors = [name for name, alias in actors_complete]
-    project_actors(actors, protocol_name) # make necessary projections
-    actor_slots = {actor: None for actor in actors} # initialize connections list
-    aliases = [alias for _n,alias in actors_complete]
-    incoming_queues = { alias: asyncio.Queue() for alias in aliases } # from actor
-    outgoing_queues = { alias: asyncio.Queue() for alias in aliases } # to actor
-    
-    all_joined_evt = asyncio.Event() # will be fired when all actors have joined
-    all_done_evt   = asyncio.Event() # will be fired when all actors are disconnected
+    # redirect print statements to logging file
+    if not os.path.exists(f'proxy/protocols/{protocol_name}'):
+        os.makedirs(f'proxy/protocols/{protocol_name}')
+    with open(f'proxy/protocols/{protocol_name}/{proxy_port}_log.txt', 'w') as file: # meetingName_port
+        sys.stdout = file  # Redirect output to file
 
-    # wait for actors to join
-    print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
-    async with serve(
-        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt, error_mode),
-        "localhost",
-        proxy_port
-    ):
-        try: 
-            # once all actors are joined
-            await all_joined_evt.wait()
-            print("All actors connected. Starting the meeting...")
-            # await asyncio.Future() # so that server doesn't close
-            # close proxy gracefullly
-            await all_done_evt.wait() # close proxy once all actors are disconnected
-            print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")
-            await asyncio.sleep(5) # for debug purposes
-            # erase protocol from folder
-            shutil.rmtree(f"proxy/protocols/{protocol_name}", ignore_errors=False, onerror=None)
-            # close meeting properly by sending a delete request to the API
-            async with httpx.AsyncClient() as client:
-                resp = await client.delete(f"http://localhost:8000/meetings/{protocol_name}")
-                if resp.status_code == 204:
-                    print(f"Successfully deleted meeting {protocol_name} from API")
-                else:
-                    print(f"Failed to delete meeting {protocol_name}: {resp.status_code} {resp.text}")
-            print("Stopped serving") # debug
-            return
-        except Exception as e:
-            print(f"proxy exception: {e}")
+        #TODO: do try and clean up maybe
+        print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
+        actors = [name for name, alias in actors_complete]
+        project_actors(actors, protocol_name) # make necessary projections
+        actor_slots = {actor: None for actor in actors} # initialize connections list
+        aliases = [alias for name,alias in actors_complete]
+        incoming_queues = { alias: asyncio.Queue() for alias in aliases } # from actor
+        outgoing_queues = { alias: asyncio.Queue() for alias in aliases } # to actor
+        
+        all_joined_evt = asyncio.Event() # will be fired when all actors have joined
+        all_done_evt   = asyncio.Event() # will be fired when all actors are disconnected
+
+        # wait for actors to join
+        print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
+        async with serve(
+            lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt, error_mode),
+            "localhost",
+            proxy_port
+        ):
+            try: 
+                # once all actors are joined
+                await all_joined_evt.wait()
+                print("All actors connected. Starting the meeting...")
+                # await asyncio.Future() # so that server doesn't close
+                # close proxy gracefullly
+                await all_done_evt.wait() # close proxy once all actors are disconnected
+                print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")
+                await asyncio.sleep(5) # for debug purposes
+
+                '''
+                # erase protocol from folder
+                shutil.rmtree(f"proxy/protocols/{protocol_name}", ignore_errors=False, onerror=None)
+                # close meeting properly by sending a delete request to the API
+                async with httpx.AsyncClient() as client:
+                    resp = await client.delete(f"http://localhost:8000/meetings/{protocol_name}")
+                    if resp.status_code == 204:
+                        print(f"Successfully deleted meeting {protocol_name} from API")
+                    else:
+                        print(f"Failed to delete meeting {protocol_name}: {resp.status_code} {resp.text}")
+                '''
+                print("Stopped serving") # debug
+            except Exception as e:
+                print(f"proxy exception: {e}")
+        sys.stdout = sys.__stdout__  # close logging?; TODO: double check
+        return

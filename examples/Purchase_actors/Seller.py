@@ -22,23 +22,26 @@ async def ws_client(port):
         url = f"ws://127.0.0.1:{port}" # 7891 is proxy port
 
         # dicts for product info
-        products_available = {}
-        products_available["coffee"] = 10
-        products_available["tea"] = 25
-        products_available["sugar"] = 100
-        products_available["cup"] = 4
+        products_available = {
+            "coffee": 10,
+            "tea": 25,
+            "sugar": 100,
+            "cup": 4,
+        }
 
-        products_prices = {}
-        products_prices["coffee"] = 30.15
-        products_prices["tea"] = 22.00
-        products_prices["sugar"] = 5.42
-        products_prices["cup"] = 56.75
+        products_prices = {
+            "coffee": 30.15,
+            "tea": 22.00,
+            "sugar": 5.42,
+            "cup": 56.75,
+        }
 
-        products_shops = {}
-        products_available["coffee"] = ["Park", "Coffee Shop", "Supermarket"]
-        products_available["tea"] = ["Park", "Coffee Shop", "Supermarket"]
-        products_available["sugar"] = ["Supermarket"]
-        products_available["cup"] = ["Coffee Shop", "Supermarket"]
+        products_shops = {
+            "coffee": ["Park", "Coffee Shop", "Supermarket"],
+            "tea":    ["Park", "Coffee Shop", "Supermarket"],
+            "sugar":  ["Supermarket"],
+            "cup":    ["Coffee Shop", "Supermarket"],
+        }
 
 
         # Connect to the proxy/server

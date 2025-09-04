@@ -23,28 +23,32 @@ async def ws_client(port):
 
         # Connect to the proxy/server
         async with websockets.connect(url) as ws:
-            await ws.send(json.dumps("Authenticator"))
+            await ws.send(json.dumps("Service"))
             await ws.recv() # will get when all actors join
             
             print(f"All actors have joined. Initializing programm...")
-
-            users = ["barista", "owner", "customer", "guest"]
             
-            while True: # might have to change
-                login = json.loads(await ws.recv())
-                if login not in users:
-                    print(f"{login} not in users")
-                    await ws.send(json.dumps("auth"))
-                    await ws.send(json.dumps(False))
-                    await ws.send(json.dumps("auth"))
-                    await ws.send(json.dumps(False)) # actually will have to reduce to one step later
-                else:
-                    print(f"{login} in users")
-                    await ws.send(json.dumps("auth"))
-                    await ws.send(json.dumps(True))
-                    await ws.send(json.dumps("auth"))
-                    await ws.send(json.dumps(True)) # actually will have to reduce to one step later
-
+            while True:
+                c_choice = json.loads(await ws.recv())
+                if c_choice == "query":
+                    a_choice = json.loads(await ws.recv())
+                    if a_choice == "wrongPayload":
+                        json.loads(await ws.recv()) # will receive None
+                        print("Error with payload from customer. Trying again...")
+                    elif a_choice == "price":
+                        info = json.loads(await ws.recv())
+                        print(f"Agency says: {info}")
+                elif c_choice == "ACCEPT":
+                    accept = json.loads(await ws.recv())
+                    print("Customer has accepted!")
+                    address = json.loads(await ws.recv())
+                    print(f"The customer's address is: {address}")
+                elif c_choice == "REJECT":
+                    reject = json.loads(await ws.recv())
+                    print("Customer has rejected.")
+                elif c_choice == "error":
+                    error = json.loads(await ws.recv())
+                    print(f"Error in program: {error}. Trying again...")
 
     except websockets.exceptions.ConnectionClosed:
         print(f"Connection lost")

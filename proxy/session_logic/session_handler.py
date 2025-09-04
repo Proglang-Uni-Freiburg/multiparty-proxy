@@ -64,10 +64,10 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     last_msg_name = None # reset
                                 else:
                                     msg_name = json.loads(await recv_queues[name].get())
-                                
-                                # if message name fails
+                                  
                                 coincides = (msg_name == actual_session.label.label)
                                 if not coincides:
+                                    print(f"Wrong label at {actual_session.label.label}, got message name {msg_name}") # debug
                                     if error_mode == "fatal":
                                         raise WrongLabelError() # raise exception because if it only returns End() then other actors won't crash
                                     else: # add to errors anyways. If ignore, then we'll just not use 
@@ -79,6 +79,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
 
                                 # if payload validation failed
                                 if not ok_payload:
+                                    print(f"Schema validation error at {actual_session.label.label}, expected type {actual_session.payload}") # debug
                                     if error_mode == "fatal":
                                         raise SchemaValidationError() # raise exception because if it only returns End() then other actors won't crash
                                     else: # add to errors anyways. If ignore, then we'll just not use 
@@ -100,7 +101,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
 
                             # report back if errors happened
                             if error_mode == "handle":
-                                actor_list[name].send(json.dumps(errors))
+                                await actor_list[name].send(json.dumps(errors))
                                 errors = [] # reset errors
 
                             # 1: receive name of first message in selected branch
