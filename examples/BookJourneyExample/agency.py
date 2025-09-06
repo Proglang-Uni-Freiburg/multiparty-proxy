@@ -65,11 +65,11 @@ async def ws_client(port):
                    await ws.send(json.dumps("REJECT"))
                    await ws.send(json.dumps(None))
                    break
-                elif c_choice == "error":
-                   error = json.loads(await ws.recv())
-                   print(f"Error in program: {error}. Trying again...")
+                elif c_choice == "timeout":
+                   timeout = json.loads(await ws.recv())
+                   print(f"There was a timeout. Trying again...")
                    await ws.send(json.dumps("error"))
-                   await ws.send(json.dumps(error))
+                   await ws.send(json.dumps(timeout))
 
 
     except websockets.exceptions.ConnectionClosed:

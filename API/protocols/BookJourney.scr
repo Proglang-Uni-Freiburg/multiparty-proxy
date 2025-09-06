@@ -33,8 +33,8 @@ global protocol BookJourney(role Agency as A, role Service as S, role Customer a
 			REJECT() from C to A;
 			REJECT() from A to S;
 		} or {
-			error(str) from C to A;
-			error(str) from A to S;
+			timeout(str) from C to A;
+			timeout(str) from A to S;
 			continue LOOP;
 		}
 	}

@@ -48,9 +48,9 @@ async def ws_client(port):
                     reject = json.loads(await ws.recv())
                     print("Customer has rejected.")
                     break
-                elif next == "error":
-                    error = json.loads(await ws.recv())
-                    print(f"Error in program: {error}. Trying again...")
+                elif next == "timeout":
+                    timeout = json.loads(await ws.recv())
+                    print(f"There was a timeout. Trying again...")
 
     except websockets.exceptions.ConnectionClosed:
         print(f"Connection lost")

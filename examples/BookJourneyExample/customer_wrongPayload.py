@@ -28,6 +28,7 @@ async def ws_client(port):
             
             print(f"All actors have joined. Initializing programm...")
 
+            wrong = True # simulates payload error in first loop
             while True:
                 possible_error = json.loads(await ws.recv()) # check if any errors
                 print(f"error?: {possible_error}")
@@ -36,7 +37,12 @@ async def ws_client(port):
                     if choice == "ask":
                         city = input("Ask for city (Paris, London, New York or Berlin): ")
                         await ws.send(json.dumps("query"))
-                        await ws.send(json.dumps(city))
+                        
+                        if wrong:
+                            await ws.send(json.dumps(7))
+                            wrong = False
+                        else:
+                            await ws.send(json.dumps(city))
 
                         choice_a = json.loads(await ws.recv())
                         if choice_a == "wrongPayload":
@@ -60,7 +66,7 @@ async def ws_client(port):
                             await ws.send(json.dumps(None))
                             break
                 else:
-                    await ws.send(json.dumps("There was a timeout. Trying again..."))
+                    await ws.send(json.dumps("There was an error. Trying again..."))
                     print(f"Error in program: {possible_error}. Trying again...")
 
 

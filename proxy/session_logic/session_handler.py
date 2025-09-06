@@ -51,6 +51,17 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                         case ("from"): # receive message from someone else
                             try:
                                 msg = await send_queues[name].get()  # get message from queue
+
+                                ok_payload = check_payload(msg, actual_session.payload, types)
+                                print(f"checking payload in to") # debug
+                                # if payload validation failed
+                                if not ok_payload:
+                                    print(f"Schema validation error at {actual_session.label.label}, expected type {actual_session.payload}") # debug
+                                    if error_mode == "fatal":
+                                        raise SchemaValidationError() # raise exception because if it only returns End() then other actors won't crash
+                                    elif error_mode == "handle" and not error: # set error if mode is not "ignore"
+                                        error = "wrongPayload"
+
                                 await actor_list[name].send(msg) # finally send it
                                 print(f"Message received by {name}, sent by {actual_session.actor}") # debug
                             except Exception as e:
@@ -74,7 +85,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
 
                                 msg = await recv_queues[name].get()  # get message from sender
                                 ok_payload = check_payload(msg, actual_session.payload, types)
-                                print(f"checking payload") # debug
+                                print(f"checking payload in from") # debug
 
                                 # if payload validation failed
                                 if not ok_payload:
@@ -101,6 +112,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
 
                             # report back if errors happened
                             if error_mode == "handle":
+                                print(f"{name} checking for errors...") # debug
+                                print(f"{error}")
                                 branch = None
                                 if error:
                                     if error in actual_session.errors:
@@ -109,6 +122,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                         branch = "error"
                                     else:
                                         error = None
+                                print(f"setting branch as {branch}")
                                     # notify choice actor if there was an error
                                 await actor_list[name].send(json.dumps(branch)) # none if no error or ignore, or error type if error
                             
@@ -116,8 +130,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                 print(f"in {name}, waiting for non-error action label")
                                 # 1: receive name of first message in selected branch
                                 branch = json.loads(await recv_queues[name].get()) # is received directly from actor
+                                last_msg_name = branch
                             print(f"choice of {name}, chose branch {branch}") # debug
-                            last_msg_name = branch
                             error = None # reset error in any case
 
                             # 2: send to involved parties

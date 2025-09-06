@@ -46,7 +46,7 @@ REJECT() to A;
 }
 or
 {
-error(str) to A;
+timeout(str) to A;
 continue LOOP;
 }
 }

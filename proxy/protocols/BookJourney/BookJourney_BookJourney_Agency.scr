@@ -49,8 +49,8 @@ REJECT() to S;
 }
 or
 {
-error(str) from C;
-error(str) to S;
+timeout(str) from C;
+timeout(str) to S;
 continue LOOP;
 }
 }

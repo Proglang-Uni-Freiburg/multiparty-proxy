@@ -69,14 +69,14 @@ class Choice(Session):
     def update_error_handling(self):
         errors_handled = []
         for item in self.alternatives:
-            if item[0].kind == Message:
-                if Message.label.label == "timeout":
+            if item[0].kind == "message":
+                if item[0].label.label == "timeout":
                     errors_handled.append("timeout")
-                elif Message.label.label == "wrongPayload":
+                elif item[0].label.label == "wrongPayload":
                     errors_handled.append("wrongPayload")
-                elif Message.label.label == "wrongPayload":
+                elif item[0].label.label == "wrongPayload":
                     errors_handled.append("wrongLabel")
-                elif Message.label.label == "error":
+                elif item[0].label.label == "error":
                     errors_handled.append("error")
         self.errors = errors_handled
 
