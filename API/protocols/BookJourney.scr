@@ -1,0 +1,41 @@
+module BookJourney;
+
+type <builtin> "int" from "builtin" as int;
+type <builtin> "float" from "builtin" as float;
+type <builtin> "bool" from "builtin" as bool;
+type <builtin> "str" from "builtin" as str;
+type <builtin> "list" from "builtin" as list;
+type <builtin> "dict" from "builtin" as dict;
+type <builtin> "tuple" from "builtin" as tuple;
+type <builtin> "none" from "builtin" as none;
+
+global protocol BookJourney(role Agency as A, role Service as S, role Customer as C)
+{
+	rec LOOP {
+		choice at C
+		{
+			query(str) from C to A;
+			choice at A
+			{
+				wrongPayload() from A to C;
+				wrongPayload() from A to S;
+				continue LOOP;
+			} or {
+				price(int) from A to C;
+				info(str) from A to S;
+				continue LOOP;
+			}
+		} or {
+			ACCEPT() from C to A;
+			ACCEPT() from A to S;
+			Address(str) from C to S;
+		} or {
+			REJECT() from C to A;
+			REJECT() from A to S;
+		} or {
+			error(str) from C to A;
+			error(str) from A to S;
+			continue LOOP;
+		}
+	}
+}

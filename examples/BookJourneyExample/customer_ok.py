@@ -29,8 +29,9 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
 
             while True:
-                possible_errors = json.loads(await ws.recv()) # check if any errors
-                if not possible_errors: # if error list is empty
+                possible_error = json.loads(await ws.recv()) # check if any errors
+                print(f"error?: {possible_error}")
+                if not possible_error: # if no error
                     choice = input("Accept or reject last offer? Or ask for a city? Write 'ask' or 'accept' or 'reject': ").lower()
                     if choice == "ask":
                         city = input("Ask for city (Paris, London, New York or Berin): ")
@@ -45,7 +46,6 @@ async def ws_client(port):
                             price = json.loads(await ws.recv())
                             print(f"The price for the trip would be {price} euros")
                     else:
-                        ignore_errors = json.loads(await ws.recv()) # will receive a series of errors but we decided not to hnalde those
                         if choice == "accept":
                             await ws.send(json.dumps("ACCEPT"))
                             await ws.send(json.dumps(None))
@@ -53,12 +53,15 @@ async def ws_client(port):
                             await ws.send(json.dumps("Address"))
                             await ws.send(json.dumps(address))
                             print("Information has been sent. See you later!")
+                            break
                         elif choice == "reject":
                             print("Offer has been rejected. See you soon!")
                             await ws.send(json.dumps("REJECT"))
+                            await ws.send(json.dumps(None))
+                            break
                 else:
-                    await ws.send(json.dumps("error"))
-                    print(f"Error in program: {possible_errors[0]}. Trying again...")
+                    await ws.send(json.dumps("There was an error. Trying again..."))
+                    print(f"Error in program: {possible_error}. Trying again...")
 
 
 

@@ -29,24 +29,26 @@ async def ws_client(port):
             print(f"All actors have joined. Initializing programm...")
             
             while True:
-                c_choice = json.loads(await ws.recv())
-                if c_choice == "query":
-                    a_choice = json.loads(await ws.recv())
-                    if a_choice == "wrongPayload":
-                        json.loads(await ws.recv()) # will receive None
-                        print("Error with payload from customer. Trying again...")
-                    elif a_choice == "price":
-                        info = json.loads(await ws.recv())
-                        print(f"Agency says: {info}")
-                elif c_choice == "ACCEPT":
+                next = json.loads(await ws.recv())
+                print(f"next action = {next}")
+                if next == "wrongPayload":
+                    json.loads(await ws.recv()) # will receive None, from A
+                    print("Error with payload from customer. Trying again...")
+                elif next == "info":
+                    info = json.loads(await ws.recv()) # from A
+                    print(f"Agency says: {info}")
+                elif next == "ACCEPT":
                     accept = json.loads(await ws.recv())
                     print("Customer has accepted!")
+                    print(f"Acceptance: {accept}")
                     address = json.loads(await ws.recv())
                     print(f"The customer's address is: {address}")
-                elif c_choice == "REJECT":
+                    break
+                elif next == "REJECT":
                     reject = json.loads(await ws.recv())
                     print("Customer has rejected.")
-                elif c_choice == "error":
+                    break
+                elif next == "error":
                     error = json.loads(await ws.recv())
                     print(f"Error in program: {error}. Trying again...")
 

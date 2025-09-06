@@ -1,0 +1,13 @@
+Starting proxy for protocol BookJourney in port 58938...
+In meeting BookJourney: waiting for all actors to join...
+In meeting BookJourney: Agency joined the meeting.
+In meeting BookJourney: Customer joined the meeting.
+In meeting BookJourney: Service joined the meeting.
+carrying out ses Rec() for S
+carrying out ses Choice() for S
+All actors connected. Starting the meeting...
+carrying out ses Rec() for A
+carrying out ses Choice() for A
+carrying out ses Rec() for C
+carrying out ses Choice() for C
+choice, cannot access local variable 'branch' where it is not associated with a value, actor fail:C

@@ -33,10 +33,12 @@ async def ws_client(port):
 
             while True:
                 c_choice = json.loads(await ws.recv())
+                print(f'received c_choice: {c_choice}')
                 if c_choice == "query":
                     query = json.loads(await ws.recv())
                     maybe_error = json.loads(await ws.recv()) # receive from proxy itself
-                    if "Schema validation error at query" in maybe_error[0]: # TODO: should i check in most recent error or not really?
+                    print(f"own error?: {maybe_error}")
+                    if maybe_error == "wrongPayload":
                         print("The payload type was wrong! Customer will try again...")
                         # to C
                         await ws.send(json.dumps("wrongPayload"))
@@ -49,18 +51,20 @@ async def ws_client(port):
                         await ws.send(json.dumps("price"))
                         await ws.send(json.dumps(800)) # send price to C; TODO: adjust to make sense
                         await ws.send(json.dumps("info"))
-                        await ws.send(json.dumps("Sending info to C...")) # send info to S
+                        await ws.send(json.dumps("Sent info to you, S")) # send info to S
                     # from here back to loop
                 elif c_choice == "ACCEPT":
                    print("Customer has accepted the trip")
                    accept = json.loads(await ws.recv())
                    await ws.send(json.dumps("ACCEPT"))
                    await ws.send(json.dumps(None))
+                   break
                 elif c_choice == "REJECT":
                    print("Customer has rejected the trip")
                    reject = json.loads(await ws.recv())
                    await ws.send(json.dumps("REJECT"))
                    await ws.send(json.dumps(None))
+                   break
                 elif c_choice == "error":
                    error = json.loads(await ws.recv())
                    print(f"Error in program: {error}. Trying again...")

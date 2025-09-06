@@ -24,7 +24,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
         Args:
             name (str): Name of the actor the session belongs to
             ses (Session):
-            actor_list (): __ that allows us to retrieve the websocket to belongs to a specific actor in the meeting
+            actor_list (): __ that allows us to retrieve the websocket that belongs to a specific actor in the meeting
             recv_queues: queue function* that stores messages received by proxy and sent by a specific actor
             send_queues: ___ queue __ that stores all emssages too be sent to an actor
             types (dict): dict with all the json schemas referenced by type name, for checking the payload adheres to the defined type at runtime
@@ -37,13 +37,12 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
     actual_session = ses
     doing:list[Session] = [] # TODO: actually restrict sessions inside to only be choice or rec
     last_msg_name = None # so that labels of message don't need to be repeated twice if actor did a choice
-    errors = []
+    error = None
 
     try:
         while (not isinstance(actual_session, End)):
 
             print(f"carrying out ses {actual_session} for {name}") # debug
-
             match (actual_session):
                 # -- Message sessions ---------------------------------------------------------------------------------------------------------------------------------
                 case (Message()):
@@ -70,8 +69,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     print(f"Wrong label at {actual_session.label.label}, got message name {msg_name}") # debug
                                     if error_mode == "fatal":
                                         raise WrongLabelError() # raise exception because if it only returns End() then other actors won't crash
-                                    else: # add to errors anyways. If ignore, then we'll just not use 
-                                        errors.append(f"Wrong label at {actual_session.label.label}, got message name {msg_name}") # TODO: label with right term later
+                                    elif error_mode == "handle" and not error: # set error if mode is not "ignore" and a previous error hasn't been reported
+                                        error = "wrongLabel"
 
                                 msg = await recv_queues[name].get()  # get message from sender
                                 ok_payload = check_payload(msg, actual_session.payload, types)
@@ -82,9 +81,10 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     print(f"Schema validation error at {actual_session.label.label}, expected type {actual_session.payload}") # debug
                                     if error_mode == "fatal":
                                         raise SchemaValidationError() # raise exception because if it only returns End() then other actors won't crash
-                                    else: # add to errors anyways. If ignore, then we'll just not use 
-                                        errors.append(f"Schema validation error at {actual_session.label.label}, expected type {actual_session.payload}") # TODO: label with right term later
+                                    elif error_mode == "handle" and not error: # set error if mode is not "ignore"
+                                        error = "wrongPayload"
                                 
+                                print(f"{name} setting {msg_name}: {json.loads(msg)} for {actual_session.actor}")
                                 await send_queues[actual_session.actor].put(msg)  # queue message for recipient (so we can send it to it when it is ready)
                                 print(f"Message sent by {name} to {actual_session.actor}") # debug
                             except Exception as e:
@@ -101,28 +101,53 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
 
                             # report back if errors happened
                             if error_mode == "handle":
-                                await actor_list[name].send(json.dumps(errors))
-                                errors = [] # reset errors
+                                branch = None
+                                if error:
+                                    if error in actual_session.errors:
+                                        branch = error
+                                    elif "error" in actual_session.errors:
+                                        branch = "error"
+                                    else:
+                                        error = None
+                                    # notify choice actor if there was an error
+                                await actor_list[name].send(json.dumps(branch)) # none if no error or ignore, or error type if error
+                            
+                            if not error: # if no error, we have to get selected branch from actor (if mode is not handle, error will be None anyways)
+                                print(f"in {name}, waiting for non-error action label")
+                                # 1: receive name of first message in selected branch
+                                branch = json.loads(await recv_queues[name].get()) # is received directly from actor
+                            print(f"choice of {name}, chose branch {branch}") # debug
+                            last_msg_name = branch
+                            error = None # reset error in any case
 
-                            # 1: receive name of first message in selected branch
-                            branch = await recv_queues[name].get() # is received directly from actor
-                            print(f"choice of {name}, chose branch {json.loads(branch)}") # debug
-                            last_msg_name = json.loads(branch)
                             # 2: send to involved parties
                             for act in actual_session.actors_involved:
                                 if act != name:
                                     print(f"sending branch decision from {name} to {act}") # debug
-                                    await send_queues[act].put(branch)
+                                    # will send index over, because label depnds on projected protocol
+                                    for i in range (len(actual_session.alternatives)): # go through choice and get right index
+                                        if actual_session.alternatives[i][0].label.label == branch:
+                                            choice_idx = i
+                                            break # TODO: breaks only for?? check
+                                    await send_queues[act].put(json.dumps(choice_idx))     
+                            doing.append(actual_session) # mark that you're carrying out choice session
+
                         # case 2: this actor RECEIVES a branch index
                         else:
-                            branch = await send_queues[name].get() # branch will be waiting to be sent in queue
-                            await actor_list[name].send(branch) # directly send to actor through websockets
+                            choice_idx = json.loads(await send_queues[name].get()) # branch will be waiting in queue, will be an index 
+                            doing.append(actual_session) # mark that you're carrying out choice session
+                            print(f"{name} choice_idx = {choice_idx}") # TODO: erase
+                            # if you branched to a choice, then send label to actor later (because you won't know until after)
+                            # but if you branched to message or rec, send name of THOSE to actor! 
+                            if actual_session.alternatives[choice_idx][0].kind in ["message", "rec"]:
+                                print(f"actor {name} is supposed to get action label now")
+                                await actor_list[name].send(json.dumps(actual_session.alternatives[choice_idx][0].label.label))
+                            elif actual_session.alternatives[choice_idx][0].kind == "ref": # TODO: is this ok? ref vs rec in this case
+                                await actor_list[name].send(json.dumps(actual_session.alternatives[choice_idx][0].name))
+                        
+                        # set for both cases
+                        actual_session = actual_session.alternatives[choice_idx][0] # start with first action, others follow with cont
 
-                        # for both, set sessions
-                        doing.append(actual_session)
-                        for maybe_ses in actual_session.alternatives:
-                            if maybe_ses[0].label.label == json.loads(branch):
-                                actual_session = maybe_ses[0] # start with first action, others follow with cont
                     except Exception as e:
                         print(f"choice, {e}, actor fail:{name}") # debug
                         return End()

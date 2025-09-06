@@ -12,7 +12,7 @@ import re
 
 #-- Scribble Protocol scr file -> Session Parser --------------------------------------------------------
 
-def scr_into_session(path_to_scr) -> Session:
+def scr_into_session(path_to_scr, error_mode:str) -> Session:
     '''
     Creates a Session object based on a projected Scribble local protocol.
 
@@ -228,6 +228,8 @@ def scr_into_session(path_to_scr) -> Session:
                         doing[-1][0].update_conts() # trigger function that joins actions with cont
                         if isinstance(doing[-1][0], Choice): # for choice, add actors to list of actors mentioned in that choice
                             doing[-1][0].update_actors_involved()
+                            if error_mode == "handle":
+                                doing[-1][0].update_error_handling()
                         doing.pop()
                 # otherwise we can just skip it
                 lines = lines[1:]

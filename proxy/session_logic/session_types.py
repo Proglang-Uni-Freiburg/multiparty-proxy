@@ -26,7 +26,7 @@ class Session:
 class Message(Session):
     def __init__(self, dir:Dir, name:Label, actor:str, payload:str, cont:Session):
         #!: some messages might have the same name but be from/to different actors amd have different payloads
-        super().__init__("single")
+        super().__init__("message")
         self.label = name
         self.dir = dir
         self.actor = actor # other actor with which interaction happens
@@ -36,12 +36,13 @@ class Message(Session):
 @dataclass
 class Choice(Session):
     # actor is for "choice at __"
-    def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session, actors_involved:list[str]=[]):
+    def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session, actors_involved:list[str]=[], errors:list[str]=[]):
         super().__init__("choice") # kind
         self.actor = actor # actor that chooses which branch to take
         self.alternatives = alternatives
         self.cont = cont
         self.actors_involved = actors_involved # initialize and will later be rewritten
+        self.errors = errors
 
     def update_conts(self):
         """
@@ -64,6 +65,21 @@ class Choice(Session):
                     if i.actor not in actors:
                         actors.append(i.actor)
         self.actors_involved = actors
+
+    def update_error_handling(self):
+        errors_handled = []
+        for item in self.alternatives:
+            if item[0].kind == Message:
+                if Message.label.label == "timeout":
+                    errors_handled.append("timeout")
+                elif Message.label.label == "wrongPayload":
+                    errors_handled.append("wrongPayload")
+                elif Message.label.label == "wrongPayload":
+                    errors_handled.append("wrongLabel")
+                elif Message.label.label == "error":
+                    errors_handled.append("error")
+        self.errors = errors_handled
+
 
 @dataclass
 class Rec(Session):
