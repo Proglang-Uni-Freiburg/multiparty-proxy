@@ -70,7 +70,7 @@ async def ws_client(port):
 
 
     except websockets.exceptions.ConnectionClosed:
-        print(f"Connection lost, most likely due to a timeout")
+        print(f"Connection lost")
     #except ProxyError as e:
         #print(e)
     except Exception as e:

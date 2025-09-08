@@ -14,9 +14,10 @@ from websockets import ClientProtocol # for websockets client
 # other imports
 from typing import Any
 import json
+import asyncio # for timeouts
 
 
-async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_queues, types:dict, error_mode:str) -> End:
+async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_queues, types:dict, error_mode:str, timeout:float) -> End:
     '''
     Function that receives a session related to an actor, and checks said actor is going through the series of
     sessions as defined by the protocol.
@@ -73,8 +74,17 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     msg_name = last_msg_name
                                     last_msg_name = None # reset
                                 else:
-                                    msg_name = json.loads(await recv_queues[name].get())
-                                  
+                                    # receive message, handle timeouts
+                                    try:
+                                        msg_name = json.loads(await asyncio.wait_for(recv_queues[name].get(), timeout=timeout))
+                                        # msg_name = await recv_queues[name].get()
+                                    except asyncio.TimeoutError:
+                                        if error_mode == "fatal":
+                                            raise Timeout()
+                                        elif error_mode == "handle" and not error: # set error if mode is not "ignore"
+                                            error = "timeout"
+                                        
+
                                 coincides = (msg_name == actual_session.label.label)
                                 if not coincides:
                                     print(f"Wrong label at {actual_session.label.label}, got message name {msg_name}") # debug
@@ -98,6 +108,9 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                 print(f"{name} setting {msg_name}: {json.loads(msg)} for {actual_session.actor}")
                                 await send_queues[actual_session.actor].put(msg)  # queue message for recipient (so we can send it to it when it is ready)
                                 print(f"Message sent by {name} to {actual_session.actor}") # debug
+                            except (SchemaValidationError, Timeout, WrongLabelError) as e:
+                                print(f"In {name}, fatal: {e}")
+                                raise e
                             except Exception as e:
                                 print(f"to, {e}") # debug
                                 return End()
@@ -130,6 +143,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                 print(f"in {name}, waiting for non-error action label")
                                 # 1: receive name of first message in selected branch
                                 branch = json.loads(await recv_queues[name].get()) # is received directly from actor
+                                print(f"{name}, got branch {branch}")
                                 last_msg_name = branch
                             print(f"choice of {name}, chose branch {branch}") # debug
                             error = None # reset error in any case
@@ -140,7 +154,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     print(f"sending branch decision from {name} to {act}") # debug
                                     # will send index over, because label depnds on projected protocol
                                     for i in range (len(actual_session.alternatives)): # go through choice and get right index
-                                        if actual_session.alternatives[i][0].label.label == branch:
+                                        if actual_session.alternatives[i][0].kind == "message" and actual_session.alternatives[i][0].label.label == branch:
                                             choice_idx = i
                                             break # TODO: breaks only for?? check
                                     await send_queues[act].put(json.dumps(choice_idx))     
@@ -197,7 +211,13 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                 doing.pop()
 
         return End() # only returned when session is end
+    except (SchemaValidationError, Timeout, WrongLabelError) as e:
+        print(f"In {name}, fatal: {e}")
+        raise e
     except Exception as e:
         print(f"prob in session: {e}")
+
+
+
 
 

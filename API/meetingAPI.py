@@ -35,7 +35,7 @@ class Meeting(BaseModel):
     roles: List[Role] # actors in protocol
     body: List[Any]  # protocol definition
     error: Optional[str] = None # type of error (fatal, ignore, handle)
-    # timeout: Optional[int] = None
+    timeout: Optional[float] = None
 
 # dicts for storing meetings info
 meetingDict: dict[str, Meeting] = {} # name of meeting : meeting object
@@ -61,8 +61,8 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int:
     else:
         meeting.error = "fatal"
 
-    # if meeting.timeout:
-        # timeout = meeting.timeout
+    if not meeting.timeout:
+        meeting.timeout = 60.0
 
     # zero: define types
     print(f"defning meeting protocol: {meeting.protocol}") # debug
@@ -99,7 +99,7 @@ async def createMeetingReq(meeting: Meeting, request: Request) -> int:
     actors = [(role.name, role.alias) for role in meeting.roles]
     def run_proxy():
         import asyncio
-        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, merged_types, meeting.error))
+        asyncio.run(main_proxy(proxy_port, actors, meeting.protocol, merged_types, meeting.error, meeting.timeout))
     thread = threading.Thread(target=run_proxy, daemon=True)
     thread.start()
     proxy_threads[meeting.protocol] = thread

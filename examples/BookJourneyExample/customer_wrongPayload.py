@@ -66,7 +66,7 @@ async def ws_client(port):
                             await ws.send(json.dumps(None))
                             break
                 else:
-                    await ws.send(json.dumps("There was an error. Trying again..."))
+                    await ws.send(json.dumps("There was a timeout. Trying again..."))
                     print(f"Error in program: {possible_error}. Trying again...")
 
 

@@ -39,7 +39,7 @@ async def ws_client(port):
                     # await asyncio.sleep(3)
                     await ws.send(json.dumps("accept"))
                     await ws.send(json.dumps(None)) # accept
-                    # await asyncio.sleep(3)
+                    await asyncio.sleep(40)
                     contact = {
                             "name":  "Alice",
                             "email": "alice@gmail.com"

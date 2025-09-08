@@ -68,7 +68,7 @@ async def ws_client(port):
                 elif c_choice == "timeout":
                    timeout = json.loads(await ws.recv())
                    print(f"There was a timeout. Trying again...")
-                   await ws.send(json.dumps("error"))
+                   await ws.send(json.dumps("timeout"))
                    await ws.send(json.dumps(timeout))
 
 

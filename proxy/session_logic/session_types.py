@@ -121,8 +121,14 @@ class SchemaValidationError(Exception):
         super().__init__(self.message)
     
 class WrongLabelError(Exception):
-    """Exception raised for errors in schema validation."""
+    """Exception raised for when the name given for the message does not coincide with that of the session."""
     def __init__(self, message:str="Wrong message label"):
+        self.message = message
+        super().__init__(self.message)
+
+class Timeout(Exception):
+    """Exception raised when a client has exceeded the timeout limit"""
+    def __init__(self, message:str="Client has timed out"):
         self.message = message
         super().__init__(self.message)
 

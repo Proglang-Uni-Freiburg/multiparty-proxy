@@ -75,7 +75,7 @@ def project_actors(actors:list[str], protocol_name: str):
         output_dir=f"proxy/protocols/{protocol_name}"
     )
 
-async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event, all_done_evt: asyncio.Event, error_mode:str):
+async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event, all_done_evt: asyncio.Event, recv_tasks_dict, error_mode:str, timeout:float):
     '''
     When a socket connects to proxy, check if they want to connect as an actor in the meeting, then initialize and handle a session for said actor.
 
@@ -88,7 +88,11 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
             incoming_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
             outgoing_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
             types: JSON schemas of all the types, referenced by the name of the type
-            all_connected(): event that lets handler know when all actors have joined the meeting and the sessions can start
+            all_connected_evt(): event that lets handler know when all actors have joined the meeting and the sessions can start
+            all_done_evt():
+            recv_tasks_dict
+            error_mode(str):
+            timeout(float):
     '''
     # declare an actor and wait for others to join
     try:
@@ -107,7 +111,8 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         # make receiving queue
         actor_alias = next(alias for name, alias in actors_complete if name == actor_name) # TODO: maybe declare aliases at start or even before the handler, in main
         recv_task = asyncio.create_task(receiving_queue(actor_alias, clientSocket, incoming_queues[actor_alias])) # so that the receiving queue can use the websockets recv function
-
+        recv_tasks_dict[actor_name] = recv_task
+        
         # fire the event if all actors have joined
         if all(actor_slots[a] for a in actor_slots):
             all_connected_evt.set()
@@ -118,20 +123,41 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         # start tracking session
         # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probaly do in main proxy instead of actor handler
         alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
-        ending = await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types, error_mode) # def session + action name
-        if ending == End():
-            # mark as finished and check if all finished
-            if actor_slots.get(actor_name) is clientSocket:
-                actor_slots[actor_name] = None
-            if all(actors is None for actors in actor_slots.values()): # if all other actors have disconnected
+        try:
+            ending = await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types, error_mode, timeout) # def session + action name
+            print(f"{actor_name}'s session ended without a problem ") # debug
+        except Exception as e:
+            print(f"{actor_name}'s session ended with exception {e}") # debug
+            if error_mode == "fatal":
+                print(f"closing other sessions....") # debug
+                # close connection with other actors
+                for a in actor_slots:
+                    socket = actor_slots[a]
+                    if e == Timeout:
+                        await socket.close(code=3008, reason="An actor timed out.") # timeout error code
+                    elif e == SchemaValidationError or e == WrongLabelError:
+                        await socket.close(code=1002, reason=f"{e}") # protocol violation error code
+                    else:
+                        await socket.close(code=1011, reason=f"{e}") # internal error code
+                    await socket.wait_closed()
+                    for a in actors_complete: # cancel all receiving queues tasks
+                        recv_tasks_dict[a[0]].cancel() # first elem will be name, second alias; recv tasks dict is referenced by full name
+                # signal all actor connections have been closed
                 all_done_evt.set() # fire event to close proxy
-            await all_done_evt.wait()
-            # close gracefully
-            await clientSocket.close(code=1000, reason="Session ended successfully")
-            await clientSocket.wait_closed()
-            print(f"{actor_name}'s session is finished and the actor has been disconnected from the session.")
-            recv_task.cancel() # close receiving queue task
-            return
+                return
+        # if it ends succesfully or if we ignore the error:
+        # mark as finished and check if all finished
+        if actor_slots.get(actor_name) is clientSocket:
+            actor_slots[actor_name] = None
+        if all(actors is None for actors in actor_slots.values()): # if all other actors have disconnected
+            all_done_evt.set() # fire event to close proxy
+        await all_done_evt.wait()
+        # close gracefully
+        await clientSocket.close(code=1000, reason="Session ended successfully")
+        await clientSocket.wait_closed()
+        print(f"{actor_name}'s session is finished and the actor has been disconnected from the session.")
+        recv_task.cancel() # close receiving queue task
+        return
     
     # handle ok disconnections
     except (websockets.ConnectionClosed, websockets.ConnectionClosedError, websockets.ConnectionClosedOK): # TODO: fix ConenctionClosed positional arguments
@@ -146,7 +172,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         pass
 
 # -- initialize ------------------------------------------------------------------------------------------------------------------------------------
-async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types, error_mode:str):
+async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types, error_mode:str, timeout: float):
     '''
     Opens proxy for a meeting and calls functions to connect actors and handle their sessions.
 
@@ -170,6 +196,7 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types,
     aliases = [alias for name,alias in actors_complete]
     incoming_queues = { alias: asyncio.Queue() for alias in aliases } # from actor
     outgoing_queues = { alias: asyncio.Queue() for alias in aliases } # to actor
+    recv_tasks = {alias: None for name, alias in actors_complete} # dict of alias <-> receiving queue tasks, to cancel them if necessary from another actor's handler
     
     all_joined_evt = asyncio.Event() # will be fired when all actors have joined
     all_done_evt   = asyncio.Event() # will be fired when all actors are disconnected
@@ -177,9 +204,11 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types,
     # wait for actors to join
     print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
     async with serve(
-        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt, error_mode),
-        "localhost",
-        proxy_port
+        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt, recv_tasks, error_mode, timeout),
+        host="localhost",
+        port=proxy_port,
+        ping_interval=None, # pings desabled, will manually check timeout on sends and recvs
+        ping_timeout=None
     ):
         try: 
             # once all actors are joined
