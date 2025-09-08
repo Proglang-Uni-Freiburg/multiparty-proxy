@@ -20,6 +20,7 @@ import asyncio # for creating asynchronous tasks, events, queues, etc.
 import httpx # for sending API requests
 import shutil # to erase scr files of protocol once meeting is done
 import os
+from typing import Optional
 
 # -- queues for sending/receiving messages in sessions ------------------------------------------------------------------
 async def receiving_queue(actor: str, ws,
@@ -94,10 +95,15 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
             error_mode(str):
             timeout(float):
     '''
+    actor_name: Optional[str] = None # initialize
+
     # declare an actor and wait for others to join
     try:
         # register actor
-        actor_name = json.loads(await clientSocket.recv())
+        try:
+            actor_name = json.loads(await clientSocket.recv())
+        except Exception as e: # if there is an error with an actor that wanted to connect before connecting in meeting, dismiss
+            return
         if actor_name not in actor_slots:
             print(f"{actor_name} not found") # debug
             await clientSocket.send(json.dumps("This actor does not exist in this meeting."))
@@ -106,7 +112,11 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         print(f"In meeting {protocol_name}: {actor_name} joined the meeting.") # debug
         
         # create session based on protocol
-        actor_ses = scr_into_session(f"proxy/protocols/{protocol_name}/{protocol_name}_{protocol_name}_{actor_name}.scr", error_mode)
+        try:
+            actor_ses = scr_into_session(f"proxy/protocols/{protocol_name}/{protocol_name}_{protocol_name}_{actor_name}.scr", error_mode)
+        except ParsingError as e:
+            print(f"Local protocol faulty, couldn't be parsed into a valid session")
+            raise e
 
         # make receiving queue
         actor_alias = next(alias for name, alias in actors_complete if name == actor_name) # TODO: maybe declare aliases at start or even before the handler, in main

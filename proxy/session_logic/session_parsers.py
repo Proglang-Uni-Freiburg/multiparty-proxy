@@ -218,6 +218,10 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                     if isinstance(sess, Choice):
                         last_choice_index = i
                         break
+                else:
+                    # if loop found no choice, then that means something went wrong, because the 'or'
+                    #   indicated a choice should still be open
+                    raise ParsingError("'or' found outside of an open 'choice'")
                 doing[last_choice_index] = (doing[last_choice_index][0], doing[last_choice_index][1] + 1)
                 lines = lines[2:] # skip or and {
             
@@ -243,7 +247,7 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
         return one_ses
     except Exception as e:
         print(f"Error in scribble to session parser: {e}")
-        raise e
+        raise ParsingError
     
     
 # -- define custom exceptions for parsing errors ------------------------------------------------------------------------------------

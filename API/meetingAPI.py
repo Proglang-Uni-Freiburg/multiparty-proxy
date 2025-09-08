@@ -70,7 +70,7 @@ async def createMeetingReq(meeting: Meeting, request: Request):
 
     # one: transform to scr
     current_json = await request.json()
-    transform(current_json, types, output_dir="API/protocols")
+    transform(current_json, types, output_dir="API/protocols") # TODO: add try block
     # join dicts of schemas of builtin and custom types into one dict
     merged_types = types[0].copy()
     merged_types.update(types[1])

@@ -38,7 +38,10 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
     actual_session = ses
     doing:list[Choice | Rec] = [] # TODO: actually restrict sessions inside to only be choice or rec
     last_msg_name = None # so that labels of message don't need to be repeated twice if actor did a choice
+    msg_name = None
     error = None
+    branch = None
+    choice_idx = 0
 
     try:
         while (not isinstance(actual_session, End)):
