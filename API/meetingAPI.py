@@ -34,13 +34,13 @@ class Meeting(BaseModel):
     protocol: str # name of protocol
     roles: List[Role] # actors in protocol
     body: List[Any]  # protocol definition
-    error: Optional[str] = None # type of error (fatal, ignore, handle)
-    timeout: Optional[float] = None
+    error: str = "fatal" # type of error (fatal, ignore, handle)
+    timeout: float = 60.0
 
 # dicts for storing meetings info
 meetingDict: dict[str, Meeting] = {} # name of meeting : meeting object
 meeting_info: dict[str, int] = {} # name of meeting : assigned proxy port
-current_json:dict = None  # to store the current json protocol
+current_json:dict = {}  # to store the current json protocol
 meeting_types:dict[str, list] = {} # meeting name: schema list
 # for handling several proxies
 proxy_threads = {}  # meeting name : thread
@@ -49,20 +49,15 @@ proxy_threads = {}  # meeting name : thread
 
 # create a meeting -> register and give back corresponding proxy port
 @app.post("/meetings/", response_model=int)
-async def createMeetingReq(meeting: Meeting, request: Request) -> int:
+async def createMeetingReq(meeting: Meeting, request: Request):
     # check no repeated meeting names
     if meeting.protocol in meetingDict:
         raise HTTPException(status_code=409, detail="Meeting already exists")
     
-    # check if error type was defined and if so, if defined ok; if not, use default
+    # check if error type was defined and if defined ok, set; if not defined, use default
     if meeting.error:
         if meeting.error not in ("fatal", "ignore", "handle"):
             raise HTTPException(status_code=422, detail="Error must be 'ignore', 'fatal' or 'handle'")
-    else:
-        meeting.error = "fatal"
-
-    if not meeting.timeout:
-        meeting.timeout = 60.0
 
     # zero: define types
     print(f"defning meeting protocol: {meeting.protocol}") # debug
@@ -117,7 +112,7 @@ async def getMeetingReq(meeting_name:str) -> int:
 # allows definition of JSON schemas for types used in a meeting
 # TODO:for now schemas one by one but later as a batch
 @app.post("/types/{meeting_name}/")
-async def createMeetingReq(meeting_name: str, schema:Mapping[str, Any]= Body(...)): # TODO: why Any?
+async def createType(meeting_name: str, schema:Mapping[str, Any]= Body(...)): # TODO: why Any?
     print(f"defining: {schema.get('title')} for {meeting_name}") # debug
     if meeting_name not in meeting_types: # for first custom schema in a meeting
         meeting_types[meeting_name] = []

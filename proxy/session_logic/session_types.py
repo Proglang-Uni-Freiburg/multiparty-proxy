@@ -19,12 +19,12 @@ class Label:
 
 # -- define session and session types ---------------------------------------------------------------------------------
 class Session:
-    def __init__(self, kind: str):
+    def __init__(self, kind:str="none"):
         self.kind = kind # options: message (would be single), choice, rec (recursive), ref (reference to a recursive one)
 
 @dataclass
 class Message(Session):
-    def __init__(self, dir:Dir, name:Label, actor:str, payload:str, cont:Session):
+    def __init__(self, dir:Dir, name:Label, actor:str, payload:str, cont:Session|None):
         #!: some messages might have the same name but be from/to different actors amd have different payloads
         super().__init__("message")
         self.label = name
@@ -36,7 +36,7 @@ class Message(Session):
 @dataclass
 class Choice(Session):
     # actor is for "choice at __"
-    def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session, actors_involved:list[str]=[], errors:list[str]=[]):
+    def __init__(self, actor:str, alternatives: list[list[Session]], cont:Session|None, actors_involved:list[str]=[], errors:list[str]=[]):
         super().__init__("choice") # kind
         self.actor = actor # actor that chooses which branch to take
         self.alternatives = alternatives
@@ -55,7 +55,9 @@ class Choice(Session):
             # blocks of actions
             for i in range(0, len(item) - 1): # all except the last one in each "set" of options
                 if not isinstance(item, Ref):
-                    item[i].cont = item[i+1]
+                    item_indexed = item[i]
+                    if isinstance (item_indexed, (Rec, Choice, Message)): # so type checker makes sure it'll have attribute cont
+                        item_indexed.cont = item[i+1]
     
     def update_actors_involved(self):
         actors = []
@@ -69,21 +71,22 @@ class Choice(Session):
     def update_error_handling(self):
         errors_handled = []
         for item in self.alternatives:
-            if item[0].kind == "message":
-                if item[0].label.label == "timeout":
+            elem = item[0]
+            if isinstance(elem, Message):
+                if elem.label.label == "timeout":
                     errors_handled.append("timeout")
-                elif item[0].label.label == "wrongPayload":
+                elif elem.label.label == "wrongPayload":
                     errors_handled.append("wrongPayload")
-                elif item[0].label.label == "wrongPayload":
+                elif elem.label.label == "wrongPayload":
                     errors_handled.append("wrongLabel")
-                elif item[0].label.label == "error":
+                elif elem.label.label == "error":
                     errors_handled.append("error")
         self.errors = errors_handled
 
 
 @dataclass
 class Rec(Session):
-    def __init__(self, label, actions: list[Session], cont:Session): # should Label be there? How to label?
+    def __init__(self, label, actions: list[Session], cont:Session|None): # should Label be there? How to label?
         super().__init__("rec") # kind
         self.label = label
         self.actions = actions
@@ -97,8 +100,9 @@ class Rec(Session):
         close the Rec session and go to its cont.
         """
         for i in range(0, len(self.actions) - 1): # is -1 ok?
-            if not isinstance(self.actions[i], Ref):
-                self.actions[i].cont = self.actions[i+1]
+            elem = self.actions[i]
+            if isinstance(elem, (Rec, Message, Choice)): # so if not Ref or End
+                elem.cont = self.actions[i+1]
         
 @dataclass
 class Ref(Session):

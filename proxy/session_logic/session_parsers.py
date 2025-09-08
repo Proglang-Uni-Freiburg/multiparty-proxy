@@ -4,7 +4,6 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # import information on sessions
-from session_logic.session_types import *
 from session_types import *
 
 # for checking patterns in lines
@@ -28,9 +27,9 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
             lines = file.readlines()
 
         # initialize vars that will help us parse
-        doing:list[(Session, int)] = [] # for open rec and choice sessions
-        one_ses:Session = None # session we will return at end, from which the chaining of sessions with cont starts
-        actual_ses:Session = None
+        doing:list[tuple[Choice | Rec, int]] = [] # for open rec and choice sessions
+        one_ses:Session= Session() # session we will return at end, from which the chaining of sessions with cont starts
+        actual_ses:Session = Session()
 
         while lines:
             line = lines[0]
@@ -63,11 +62,12 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                     # print(f"defining actor for choice: {actor}") # debug
                     current_choice = Choice(actor, [], None)
                     if not doing: # if not inside any rec or choice
-                        if one_ses: # if it is not the first session in the protocol
-                            actual_ses.cont = current_choice
-                            if isinstance(actual_ses, Choice):
-                                actual_ses.update_conts()
-                            actual_ses = actual_ses.cont
+                        if one_ses.kind != "none": # if it is not the first session in the protocol
+                            if isinstance(actual_ses, (Rec, Message, Choice)): # if it WILL have cont attribute
+                                actual_ses.cont = current_choice
+                                if isinstance(actual_ses, Choice):
+                                    actual_ses.update_conts()
+                                actual_ses = actual_ses.cont
                         else:
                             one_ses = current_choice
                             actual_ses = one_ses
@@ -99,11 +99,12 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                     name = match.group(1)
                     current_rec = Rec(name, [], None)
                     if not doing: # if not inside any rec or choice
-                        if one_ses:
+                        if one_ses.kind != "none":
                             actual_ses.cont = current_rec
                             if isinstance(actual_ses, Choice):
                                 actual_ses.update_conts()
-                            actual_ses = actual_ses.cont
+                            if isinstance(actual_ses, (Choice, Rec, Message)):
+                                actual_ses = actual_ses.cont
                         else:
                             one_ses = current_rec
                             actual_ses = one_ses
@@ -132,11 +133,12 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                 if not payload:
                     payload = "none"
                 if not doing: # if not inside any rec or choice
-                    if one_ses:
+                    if one_ses.kind != "none":
                         actual_ses.cont = Message(Dir("to"), Label(name), actor, payload, None)
                         if isinstance(actual_ses, Choice):
                             actual_ses.update_conts()
-                        actual_ses = actual_ses.cont
+                        if isinstance(actual_ses, (Choice, Rec, Message)): # make sure it has cont attribute
+                            actual_ses = actual_ses.cont
                     else:
                         one_ses = Message(Dir("to"), Label(name), actor, payload, None)
                         actual_ses = one_ses
@@ -164,11 +166,12 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                 if not payload:
                     payload = "none"
                 if not doing: # if not inside any rec or choice
-                    if one_ses:
+                    if one_ses.kind != "none":
                         actual_ses.cont = Message(Dir("from"), Label(name), actor, payload, None)
                         if isinstance(actual_ses, Choice):
                             actual_ses.update_conts()
-                        actual_ses = actual_ses.cont
+                        if isinstance(actual_ses, (Choice, Rec, Message)):
+                            actual_ses = actual_ses.cont
                     else:
                         one_ses = Message(Dir("from"), Label(name), actor, payload, None)
                         actual_ses = one_ses
@@ -196,14 +199,16 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                 match = re.match(pattern, line)
                 if match:
                     name = match.group(1)
-                    if isinstance(doing[-1][0], Rec):
-                        doing[-1][0].actions.append(Ref(name))
-                    if isinstance(doing[-1][0], Choice):
-                        if doing[-1][0].alternatives is not None:
+                    doing_ses = doing[-1][0]
+                    if isinstance(doing_ses, Rec):
+                        doing_ses.actions.append(Ref(name))
+                    if isinstance(doing_ses, Choice):
+                        if doing_ses.alternatives is not None:
                             # -1 gets (Choice, Branch), so the [1] is to know in which Choice branch we are adding Sessions
-                            doing[-1][0].alternatives[doing[-1][1]].append(Ref(name))
+                            doing_ses.alternatives[doing[-1][1]].append(Ref(name))
                         else:
-                            doing[-1][0].alternatives = [[Ref(name)]]
+                            doing_ses.alternatives = [[]]
+                            doing_ses.alternatives[0].append(Ref(name))
                 lines = lines[1:]
 
             # check if we move to different options in choice
@@ -219,7 +224,8 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
             # close the latest choice or rec
             if "}" in line:
                 if len(lines) == 1:
-                    actual_ses.cont = End()
+                    if isinstance(actual_ses, (Rec, Message, Choice)):
+                        actual_ses.cont = End()
                 elif "or" in lines[1]:
                     lines = lines[1:] # go to next line, consider the actual line as parsed
                     continue # because that just means we are closing one option in choice before going to the next
@@ -236,7 +242,8 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
 
         return one_ses
     except Exception as e:
-        print(e)
+        print(f"Error in scribble to session parser: {e}")
+        raise e
     
     
 # -- define custom exceptions for parsing errors ------------------------------------------------------------------------------------

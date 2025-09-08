@@ -128,7 +128,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
             print(f"{actor_name}'s session ended without a problem ") # debug
         except Exception as e:
             print(f"{actor_name}'s session ended with exception {e}") # debug
-            if error_mode == "fatal":
+            if error_mode == "fatal": # if fatal, close ALL actors
                 print(f"closing other sessions....") # debug
                 # close connection with other actors
                 for a in actor_slots:

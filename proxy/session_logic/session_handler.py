@@ -12,7 +12,7 @@ from websockets.legacy.server import WebSocketServerProtocol, serve # for websoc
 from websockets import ClientProtocol # for websockets client
 
 # other imports
-from typing import Any
+from typing import Any, Union
 import json
 import asyncio # for timeouts
 
@@ -36,7 +36,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
     
     # initialize
     actual_session = ses
-    doing:list[Session] = [] # TODO: actually restrict sessions inside to only be choice or rec
+    doing:list[Choice | Rec] = [] # TODO: actually restrict sessions inside to only be choice or rec
     last_msg_name = None # so that labels of message don't need to be repeated twice if actor did a choice
     error = None
 
@@ -112,8 +112,8 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                 print(f"In {name}, fatal: {e}")
                                 raise e
                             except Exception as e:
-                                print(f"to, {e}") # debug
-                                return End()
+                                print(f"In {name} session message, to, error: {e}")
+                                raise e # debug
                         case _:
                             return End()
                     actual_session = actual_session.cont # update sessions to use in while loop
@@ -154,9 +154,11 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     print(f"sending branch decision from {name} to {act}") # debug
                                     # will send index over, because label depnds on projected protocol
                                     for i in range (len(actual_session.alternatives)): # go through choice and get right index
-                                        if actual_session.alternatives[i][0].kind == "message" and actual_session.alternatives[i][0].label.label == branch:
-                                            choice_idx = i
-                                            break # TODO: breaks only for?? check
+                                        elem = actual_session.alternatives[i][0]
+                                        if isinstance(elem, Message):
+                                            if elem.label.label == branch:
+                                                choice_idx = i
+                                                break # TODO: breaks only for?? check
                                     await send_queues[act].put(json.dumps(choice_idx))     
                             doing.append(actual_session) # mark that you're carrying out choice session
 
@@ -178,7 +180,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
 
                     except Exception as e:
                         print(f"choice, {e}, actor fail:{name}") # debug
-                        return End()
+                        raise e
                 # -- Ref sessions ---------------------------------------------------------------------------------------------------------------------------------
                 case(Ref()):
                     print(f"doing ref {actual_session.name} in {name}") # debug
@@ -189,18 +191,18 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                     try: 
                         pass
                     except Exception as e:
-                        print(f"ref problem, {e}") # debug
-                        return End()
+                        print(f"in {name}, ref problem, {e}") # debug
+                        raise e
                 # -- Rec sessions ---------------------------------------------------------------------------------------------------------------------------------
                 case(Rec()):
                     # declare rec and go inside rec list to do actions
                     doing.append(actual_session)
-                    actual_session = doing[-1].actions[0]
+                    actual_session = actual_session.actions[0]
                     try: 
                         pass
                     except Exception as e:
-                        print(f"rec problem, {e}") # debug
-                        return End()
+                        print(f"in {name} rec problem, {e}") # debug
+                        raise e
                 case _:
                     return End()
             # -- Handle None -------------------------------------------------------------------------------------------------------------------------------------
@@ -215,7 +217,7 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
         print(f"In {name}, fatal: {e}")
         raise e
     except Exception as e:
-        print(f"prob in session: {e}")
+        raise e
 
 
 
