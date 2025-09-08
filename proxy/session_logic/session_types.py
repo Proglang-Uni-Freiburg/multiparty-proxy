@@ -60,7 +60,7 @@ class Choice(Session):
                         item_indexed.cont = item[i+1]
     
     def update_actors_involved(self):
-        actors = []
+        actors:list[str] = []
         for item in self.alternatives:
             for i in item:
                 if isinstance(i, Choice) or isinstance(i, Message): # ref and rec don't have actor
@@ -69,7 +69,7 @@ class Choice(Session):
         self.actors_involved = actors
 
     def update_error_handling(self):
-        errors_handled = []
+        errors_handled:list[str] = []
         for item in self.alternatives:
             elem = item[0]
             if isinstance(elem, Message):
@@ -86,7 +86,7 @@ class Choice(Session):
 
 @dataclass
 class Rec(Session):
-    def __init__(self, label, actions: list[Session], cont:Session|None): # should Label be there? How to label?
+    def __init__(self, label:Label, actions: list[Session], cont:Session|None): # should Label be there? How to label?
         super().__init__("rec") # kind
         self.label = label
         self.actions = actions

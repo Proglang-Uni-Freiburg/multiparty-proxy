@@ -1,6 +1,8 @@
 import os # to find file
+from typing import Any
 
-def json_to_scribble_func(proto, schemas):
+# TODO: double-check but as there is no fixed type for JSON, use Any
+def json_to_scribble_func(proto:Any, schemas:tuple[dict[str, Any], dict[str, Any]]):
     '''
     Creates a scr file with a global Scribble protocol based on a JSON describing said protocol.
 
@@ -8,7 +10,7 @@ def json_to_scribble_func(proto, schemas):
             proto(): the JSON body that describes the protocol
             schemas(): a dict* that contains all the custom types in a session (protocol) and the JSON schemas that describe them
     '''
-    lines = []
+    lines:list[str] = []
     # Use protocol name as module name
     module_name = proto["protocol"]
     lines.append(f"module {module_name};")
@@ -56,7 +58,7 @@ def walk_body(body, indent=1):
     return lines
 
 
-def transform(proto, schemas, output_dir):
+def transform(proto:Any, schemas:tuple[dict[str, Any], dict[str, Any]], output_dir:str):
     '''
     Creates a scr file with a global Scribble protocol based on a JSON describing said protocol.
 

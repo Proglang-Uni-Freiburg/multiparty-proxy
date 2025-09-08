@@ -1,7 +1,7 @@
 # websockets imports
 import websockets
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets server
-from websockets.legacy.client import WebSocketClientProtocol # for websockets client # TODO: see if we use this
+# from websockets.legacy.client import WebSocketClientProtocol # for websockets client # TODO: see if we use this
 
 # to be able to use modules from other files in the project
 import sys
@@ -17,14 +17,14 @@ from proxy.session_logic.type_validation import *
 # other imports
 import json
 import asyncio # for creating asynchronous tasks, events, queues, etc.
-import httpx # for sending API requests
-import shutil # to erase scr files of protocol once meeting is done
+# import httpx # for sending API requests
+# import shutil # to erase scr files of protocol once meeting is done
 import os
 from typing import Optional
 
 # -- queues for sending/receiving messages in sessions ------------------------------------------------------------------
-async def receiving_queue(actor: str, ws,
-                      queue: asyncio.Queue[str]):
+async def receiving_queue(actor: str, ws:WebSocketServerProtocol,
+                      queue: asyncio.Queue[Any]):
     '''
     Creates and enables access to a queue where all messages received from an actor through their websocket are stored.
 
@@ -39,8 +39,8 @@ async def receiving_queue(actor: str, ws,
     except Exception as e:
         print(f"Problem with receiving queue for {actor}: {e}") # TODO: raise instead of print
 
-async def sending_queue(actor: str, ws,
-                      queue: asyncio.Queue[str]):
+async def sending_queue(actor: str, ws:WebSocketServerProtocol,
+                      queue: asyncio.Queue[Any]):
     '''
     Creates and enables access to a queue where all messages to be sent to the actor are stored.
 
@@ -53,7 +53,7 @@ async def sending_queue(actor: str, ws,
     '''
     try:
         while True:
-            msg = await queue.get()
+            await queue.get()
     except Exception as e:
         print(f"Problem with sending queue for {actor}: {e}") # TODO: raise instead of print
 
@@ -76,7 +76,10 @@ def project_actors(actors:list[str], protocol_name: str):
         output_dir=f"proxy/protocols/{protocol_name}"
     )
 
-async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots:dict, actors_complete, protocol_name:str, incoming_queues, outgoing_queues, types, all_connected_evt: asyncio.Event, all_done_evt: asyncio.Event, recv_tasks_dict, error_mode:str, timeout:float):
+async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_slots:dict[str, WebSocketServerProtocol|None],
+                        actors_complete:list[tuple[str, str]], protocol_name:str, incoming_queues:dict[str, asyncio.Queue[Any]],
+                        outgoing_queues:dict[str, asyncio.Queue[Any]], types:dict[str, Any], all_connected_evt: asyncio.Event,
+                        all_done_evt: asyncio.Event, recv_tasks_dict:dict[str, asyncio.Task[Any]|None], error_mode:str, timeout:float):
     '''
     When a socket connects to proxy, check if they want to connect as an actor in the meeting, then initialize and handle a session for said actor.
 
@@ -84,7 +87,8 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
             clientSocket(): actor socket that is connected to the proxy
             path(): needed to use proxy in "serve" mode
             actor_slots(dict): dict with whcih one can find the websockets port assigned to an actor (actor: port)
-            actors_complete(): list of all actors along with their aliases (the shortened version of their names that is used in the projected Scribble protocol)
+            actors_complete(): list of all actors along with their aliases (the shortened version of
+                their names that is used in the projected Scribble protocol)
             protocol_name(str): name of the protocol (aka meeting) the proxy is regulating
             incoming_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
             outgoing_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
@@ -134,7 +138,8 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probaly do in main proxy instead of actor handler
         alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
         try:
-            ending = await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues, outgoing_queues, types, error_mode, timeout) # def session + action name
+            await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues,
+                                 outgoing_queues, types, error_mode, timeout) # def session + action name
             print(f"{actor_name}'s session ended without a problem ") # debug
         except Exception as e:
             print(f"{actor_name}'s session ended with exception {e}") # debug
@@ -143,15 +148,18 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
                 # close connection with other actors
                 for a in actor_slots:
                     socket = actor_slots[a]
-                    if e == Timeout:
-                        await socket.close(code=3008, reason="An actor timed out.") # timeout error code
-                    elif e == SchemaValidationError or e == WrongLabelError:
-                        await socket.close(code=1002, reason=f"{e}") # protocol violation error code
-                    else:
-                        await socket.close(code=1011, reason=f"{e}") # internal error code
-                    await socket.wait_closed()
-                    for a in actors_complete: # cancel all receiving queues tasks
-                        recv_tasks_dict[a[0]].cancel() # first elem will be name, second alias; recv tasks dict is referenced by full name
+                    if socket is not None: # only if the actor hasn't disconnected yet
+                        if e == Timeout():
+                            await socket.close(code=3008, reason="An actor timed out.") # timeout error code
+                        elif e == SchemaValidationError() or e == WrongLabelError():
+                            await socket.close(code=1002, reason=f"{e}") # protocol violation error code
+                        else:
+                            await socket.close(code=1011, reason=f"{e}") # internal error code
+                        await socket.wait_closed()
+                        for a in actors_complete: # cancel all receiving queues tasks
+                            task = recv_tasks_dict[a[0]]
+                            if isinstance(task, asyncio.Task): # for type checker to make sure it uses cancel on a task
+                                task.cancel() # first elem will be name, second alias; recv tasks dict is referenced by full name
                 # signal all actor connections have been closed
                 all_done_evt.set() # fire event to close proxy
                 return
@@ -182,7 +190,8 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path, actor_slots
         pass
 
 # -- initialize ------------------------------------------------------------------------------------------------------------------------------------
-async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types, error_mode:str, timeout: float):
+async def main_proxy(proxy_port:int, actors_complete:list[tuple[str, str]], protocol_name: str, types: dict[str, Any],
+                     error_mode:str, timeout: float):
     '''
     Opens proxy for a meeting and calls functions to connect actors and handle their sessions.
 
@@ -200,21 +209,29 @@ async def main_proxy(proxy_port:int, actors_complete, protocol_name: str, types,
 
     #TODO: do try and clean up maybe
     print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
-    actors = [name for name, alias in actors_complete]
+    # separate actors and aliases
+    actors = [elem[0] for elem in actors_complete]
+    aliases = [elem[1] for elem in actors_complete]
     project_actors(actors, protocol_name) # make necessary projections
+    # create dict for sockets
+    actor_slots: dict[str, Optional[WebSocketServerProtocol]] = {} # initialize dict
     actor_slots = {actor: None for actor in actors} # initialize connections list
-    aliases = [alias for name,alias in actors_complete]
-    incoming_queues = { alias: asyncio.Queue() for alias in aliases } # from actor
-    outgoing_queues = { alias: asyncio.Queue() for alias in aliases } # to actor
-    recv_tasks = {alias: None for name, alias in actors_complete} # dict of alias <-> receiving queue tasks, to cancel them if necessary from another actor's handler
+    # create necessary queues and tasks
+    incoming_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # from actor
+    outgoing_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # to actor
+    recv_tasks: dict[str, asyncio.Task[Any]|None] = {alias: None for alias in aliases} # dict of alias <-> receiving queue tasks, to cancel them if necessary from another actor's handler
     
+    # start necessary events
     all_joined_evt = asyncio.Event() # will be fired when all actors have joined
     all_done_evt   = asyncio.Event() # will be fired when all actors are disconnected
 
     # wait for actors to join
     print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
     async with serve(
-        lambda ws, path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues, outgoing_queues, types, all_joined_evt, all_done_evt, recv_tasks, error_mode, timeout),
+        lambda ws,
+        path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues,
+                                       outgoing_queues, types, all_joined_evt, all_done_evt, recv_tasks,
+                                       error_mode, timeout),
         host="localhost",
         port=proxy_port,
         ping_interval=None, # pings desabled, will manually check timeout on sends and recvs

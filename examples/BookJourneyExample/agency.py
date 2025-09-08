@@ -13,7 +13,7 @@ import json
 import argparse
 
  
-async def ws_client(port):
+async def ws_client(port:int):
     '''
     Handles connection and sends and receives payloads according to interaction with user.
     '''
@@ -28,8 +28,7 @@ async def ws_client(port):
             
             print(f"All actors have joined. Initializing programm...")
             
-            cities = ["Paris", "London", "New York", "Berlin"]
-            prices = ["700", "500", "650", "451"]
+            cities = {"Paris": 700, "London":500, "New York":650, "Berlin":451}
 
             while True:
                 c_choice = json.loads(await ws.recv())
@@ -49,19 +48,19 @@ async def ws_client(port):
                     else:
                         print(f"Customer is asking for {query}")
                         await ws.send(json.dumps("price"))
-                        await ws.send(json.dumps(800)) # send price to C; TODO: adjust to make sense
+                        await ws.send(json.dumps(cities[query])) # send price to C; TODO: adjust to make sense
                         await ws.send(json.dumps("info"))
                         await ws.send(json.dumps("Sent info to you, S")) # send info to S
                     # from here back to loop
                 elif c_choice == "ACCEPT":
                    print("Customer has accepted the trip")
-                   accept = json.loads(await ws.recv())
+                   json.loads(await ws.recv()) # accept
                    await ws.send(json.dumps("ACCEPT"))
                    await ws.send(json.dumps(None))
                    break
                 elif c_choice == "REJECT":
                    print("Customer has rejected the trip")
-                   reject = json.loads(await ws.recv())
+                   json.loads(await ws.recv()) # reject
                    await ws.send(json.dumps("REJECT"))
                    await ws.send(json.dumps(None))
                    break

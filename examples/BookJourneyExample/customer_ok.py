@@ -13,7 +13,7 @@ import json
 import argparse
 
  
-async def ws_client(port):
+async def ws_client(port:int):
     '''
     Handles connection and sends and receives payloads according to interaction with user.
     '''
@@ -40,7 +40,7 @@ async def ws_client(port):
 
                         choice_a = json.loads(await ws.recv())
                         if choice_a == "wrongPayload":
-                            wrong_payload_message = json.loads(await ws.recv())
+                            json.loads(await ws.recv()) # wrong_payload_message
                             print("Something went wrong. Trying again...")
                         elif choice_a == "price":
                             price = json.loads(await ws.recv())

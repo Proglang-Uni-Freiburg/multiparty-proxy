@@ -1,10 +1,10 @@
 # API imports
 from fastapi import FastAPI, Response, status, HTTPException, Request, Body
-import uvicorn
+# import uvicorn
 from pydantic import BaseModel
 
 # for type annotations
-from typing import Any, List, Mapping, Optional
+from typing import Any, List, Mapping
 
 # imports to be able to use functions from other modules in project or access files
 import sys
@@ -40,8 +40,8 @@ class Meeting(BaseModel):
 # dicts for storing meetings info
 meetingDict: dict[str, Meeting] = {} # name of meeting : meeting object
 meeting_info: dict[str, int] = {} # name of meeting : assigned proxy port
-current_json:dict = {}  # to store the current json protocol
-meeting_types:dict[str, list] = {} # meeting name: schema list
+current_json:Any = {}  # to store the current json protocol
+meeting_types:dict[str, list[Any]] = {} # meeting name: schema list
 # for handling several proxies
 proxy_threads = {}  # meeting name : thread
 
@@ -61,11 +61,13 @@ async def createMeetingReq(meeting: Meeting, request: Request):
 
     # zero: define types
     print(f"defning meeting protocol: {meeting.protocol}") # debug
+    schemas: list[Any]
     if meeting.protocol in meeting_types:
         # print(f"found schemas in {meeting.protocol}") # debug
         schemas = meeting_types[meeting.protocol]
     else:
-        schemas = None
+        schemas = []
+    types: tuple[dict[str, Any], dict[str, Any]]
     types = create_type_checker(schemas) # all type schemas we'll need for types in protocol
 
     # one: transform to scr

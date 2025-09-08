@@ -8,16 +8,17 @@ from session_types import *
 from type_validation import *
 
 # websockets imports
-from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets server websocket
-from websockets import ClientProtocol # for websockets client
+from websockets.legacy.server import WebSocketServerProtocol # for websockets server websocket
+# from websockets import ClientProtocol # for websockets client
 
 # other imports
-from typing import Any, Union
+from typing import Any
 import json
 import asyncio # for timeouts
 
 
-async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_queues, types:dict, error_mode:str, timeout:float) -> End:
+async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketServerProtocol|None], recv_queues:dict[str, asyncio.Queue[Any]],
+                         send_queues:dict[str, asyncio.Queue[Any]], types:dict[str, Any], error_mode:str, timeout:float) -> End:
     '''
     Function that receives a session related to an actor, and checks said actor is going through the series of
     sessions as defined by the protocol.
@@ -66,7 +67,9 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                     elif error_mode == "handle" and not error: # set error if mode is not "ignore"
                                         error = "wrongPayload"
 
-                                await actor_list[name].send(msg) # finally send it
+                                socket = actor_list[name] # get socket
+                                if isinstance(socket, WebSocketServerProtocol): # check it is socket for type checker
+                                    await socket.send(msg) # finally send it
                                 print(f"Message received by {name}, sent by {actual_session.actor}") # debug
                             except Exception as e:
                                 print(f"from, {e}") # debug
@@ -140,7 +143,9 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                                         error = None
                                 print(f"setting branch as {branch}")
                                     # notify choice actor if there was an error
-                                await actor_list[name].send(json.dumps(branch)) # none if no error or ignore, or error type if error
+                                socket = actor_list[name]
+                                if isinstance(socket, WebSocketServerProtocol): # check for type checker
+                                    await socket.send(json.dumps(branch)) # none if no error or ignore, or error type if error
                             
                             if not error: # if no error, we have to get selected branch from actor (if mode is not handle, error will be None anyways)
                                 print(f"in {name}, waiting for non-error action label")
@@ -172,11 +177,15 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                             print(f"{name} choice_idx = {choice_idx}") # TODO: erase
                             # if you branched to a choice, then send label to actor later (because you won't know until after)
                             # but if you branched to message or rec, send name of THOSE to actor! 
-                            if actual_session.alternatives[choice_idx][0].kind in ["message", "rec"]:
-                                print(f"actor {name} is supposed to get action label now")
-                                await actor_list[name].send(json.dumps(actual_session.alternatives[choice_idx][0].label.label))
-                            elif actual_session.alternatives[choice_idx][0].kind == "ref": # TODO: is this ok? ref vs rec in this case
-                                await actor_list[name].send(json.dumps(actual_session.alternatives[choice_idx][0].name))
+                            socket = actor_list[name]
+                            if isinstance(socket, WebSocketServerProtocol): # so type checker can make sure we can send because it is a socket
+                                if isinstance(choice_idx, int): # for type checker to make sure we can use index
+                                    first_ses = actual_session.alternatives[choice_idx][0]
+                                    if isinstance(first_ses, (Message, Rec)):
+                                        print(f"actor {name} is supposed to get action label now")
+                                        await socket.send(json.dumps(first_ses.label.label))
+                                    elif isinstance(first_ses, Ref): # TODO: is this ok? ref vs rec in this case
+                                        await socket.send(json.dumps(first_ses.name))
                         
                         # set for both cases
                         actual_session = actual_session.alternatives[choice_idx][0] # start with first action, others follow with cont
@@ -188,9 +197,10 @@ async def handle_session(name:str, ses:Session, actor_list, recv_queues, send_qu
                 case(Ref()):
                     print(f"doing ref {actual_session.name} in {name}") # debug
                     for item in reversed(doing): #take latest Rec session
-                        if isinstance(item, Rec) and item.label == actual_session.name:
-                            actual_session = item
-                            break
+                        if isinstance(item, Rec):
+                            if item.label.label == actual_session.name:
+                                actual_session = item
+                                break
                     try: 
                         pass
                     except Exception as e:

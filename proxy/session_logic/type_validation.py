@@ -4,9 +4,10 @@ import jsonschema
 
 # for getting json schemas of basic python types
 from pydantic import TypeAdapter
+from typing import Any
 
-
-def create_type_checker(schema_list)-> tuple[dict, dict]:
+# JSON defined as Any as there is no proper definition in Python
+def create_type_checker(schema_list:list[Any]|None)-> tuple[dict[str, Any], dict[str, Any]]:
     '''
     Creates a dict of JSON schemas (type_name: json_schema) against which a session can check payload types comply.
 
@@ -18,8 +19,8 @@ def create_type_checker(schema_list)-> tuple[dict, dict]:
     '''
     
     # initialize dicts
-    basic_schemas = {}
-    custom_schemas = {}
+    basic_schemas:dict[str, Any] = {}
+    custom_schemas:dict[str, Any] = {}
 
     # first define the basic python types
     basic_schemas["int"] = TypeAdapter(int).json_schema()
@@ -38,7 +39,7 @@ def create_type_checker(schema_list)-> tuple[dict, dict]:
     
     return (basic_schemas, custom_schemas)
 
-def check_payload(msg, expected:str, schema_dict) -> bool:
+def check_payload(msg:Any, expected:str, schema_dict:dict[str, Any]) -> bool:
     '''
     Checks if a payload is of the expected type.
 
@@ -60,6 +61,7 @@ def check_payload(msg, expected:str, schema_dict) -> bool:
         # raise jsonschema.ValidationError(f"Invalid data type! Expected type {expected} for {json.loads(msg)}")
     except Exception as e:
         print(f"Something went wrong with the type validation {e}") # TODO: make proper exception
+        raise e
 
 # debug/test
 """
@@ -76,4 +78,3 @@ if __name__ == "__main__":
     print(check_payload(json.dumps(["hi", False]), "list", types)) # list
     print(check_payload(json.dumps(temp_dict), "dict", types)) # dict
 """
-    

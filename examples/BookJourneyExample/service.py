@@ -13,7 +13,7 @@ import json
 import argparse
 
  
-async def ws_client(port):
+async def ws_client(port:int):
     '''
     Handles connection and sends and receives payloads according to interaction with user.
     '''
@@ -45,11 +45,11 @@ async def ws_client(port):
                     print(f"The customer's address is: {address}")
                     break
                 elif next == "REJECT":
-                    reject = json.loads(await ws.recv())
+                    json.loads(await ws.recv()) # reject
                     print("Customer has rejected.")
                     break
                 elif next == "timeout":
-                    timeout = json.loads(await ws.recv())
+                    json.loads(await ws.recv()) # timeout; TODO: print messsage?
                     print(f"There was a timeout. Trying again...")
 
     except websockets.exceptions.ConnectionClosed:

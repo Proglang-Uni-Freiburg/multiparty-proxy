@@ -11,7 +11,7 @@ import re
 
 #-- Scribble Protocol scr file -> Session Parser --------------------------------------------------------
 
-def scr_into_session(path_to_scr, error_mode:str) -> Session:
+def scr_into_session(path_to_scr:str, error_mode:str) -> Session:
     '''
     Creates a Session object based on a projected Scribble local protocol.
 
@@ -73,14 +73,14 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                             actual_ses = one_ses
                     elif isinstance(doing[-1][0], Rec): # if inside a rec
                         doing[-1][0].actions.append(current_choice)
-                    elif isinstance(doing[-1][0], Choice): # if inside a choice
+                    else: # else doing[-1][0] will be a choice!
                         # TODO: better explanation of this process
                         choice = doing[-1][0]
                         branch = doing[-1][1]
 
                         # If we’ve never set alternatives at all, start with one empty branch
-                        if choice.alternatives is None: # TODO: see if I can change this by just using [[]] when initializing choice
-                            choice.alternatives = [[]]
+                        if choice.alternatives == []: # if it's empty; TODO: check if it works
+                            choice.alternatives = []
 
                         # If this branch index is beyond current length, extend with empty lists
                         while len(choice.alternatives) <= branch:
@@ -97,7 +97,7 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                 match = re.match(pattern, line)
                 if match:
                     name = match.group(1)
-                    current_rec = Rec(name, [], None)
+                    current_rec = Rec(Label(name), [], None)
                     if not doing: # if not inside any rec or choice
                         if one_ses.kind != "none":
                             actual_ses.cont = current_rec
@@ -110,13 +110,13 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                             actual_ses = one_ses
                     elif isinstance(doing[-1][0], Rec):
                         doing[-1][0].actions.append(current_rec)
-                    elif isinstance(doing[-1][0], Choice):
+                    else: # doing[-1][0] will always be Choice
                         choice = doing[-1][0]
                         branch = doing[-1][1]
 
                         # If we’ve never set alternatives at all, start with one empty branch
-                        if choice.alternatives is None:
-                            choice.alternatives = [[]]
+                        if choice.alternatives == []:
+                            choice.alternatives = []
 
                         # If this branch index is beyond current length, extend with empty lists
                         while len(choice.alternatives) <= branch:
@@ -144,13 +144,13 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                         actual_ses = one_ses
                 elif isinstance(doing[-1][0], Rec):
                     doing[-1][0].actions.append(Message(Dir("to"), Label(name), actor, payload, None))
-                elif isinstance(doing[-1][0], Choice):
+                else: # doing[-1][0] will always be Choice here
                     choice = doing[-1][0]
                     branch = doing[-1][1]
 
                     # If we’ve never set alternatives at all, start with one empty branch
-                    if choice.alternatives is None:
-                        choice.alternatives = [[]]
+                    if choice.alternatives == []:
+                        choice.alternatives = []
 
                     # If this branch index is beyond current length, extend with empty lists
                     while len(choice.alternatives) <= branch:
@@ -177,13 +177,13 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                         actual_ses = one_ses
                 elif isinstance(doing[-1][0], Rec):
                     doing[-1][0].actions.append(Message(Dir("from"), Label(name), actor, payload, None))
-                elif isinstance(doing[-1][0], Choice):
+                else:
                     choice = doing[-1][0]
                     branch = doing[-1][1]
 
                     # If we’ve never set alternatives at all, start with one empty branch
-                    if choice.alternatives is None:
-                        choice.alternatives = [[]]
+                    if choice.alternatives == []:
+                        choice.alternatives = []
 
                     # If this branch index is beyond current length, extend with empty lists
                     while len(choice.alternatives) <= branch:
@@ -203,18 +203,21 @@ def scr_into_session(path_to_scr, error_mode:str) -> Session:
                     if isinstance(doing_ses, Rec):
                         doing_ses.actions.append(Ref(name))
                     if isinstance(doing_ses, Choice):
-                        if doing_ses.alternatives is not None:
+                        if doing_ses.alternatives != []:
                             # -1 gets (Choice, Branch), so the [1] is to know in which Choice branch we are adding Sessions
                             doing_ses.alternatives[doing[-1][1]].append(Ref(name))
                         else:
-                            doing_ses.alternatives = [[]]
+                            # doing_ses.alternatives = [] # TODO: erase if this works
                             doing_ses.alternatives[0].append(Ref(name))
                 lines = lines[1:]
 
             # check if we move to different options in choice
             if line.strip() == "or":
                 # find index of last occurence of choice
-                for i, (sess, branch_idx) in reversed(list(enumerate(doing))):
+                for elem in reversed(list(enumerate(doing))):
+                    # each element will be [i, (sess, branch_idx)]
+                    i = elem[0]
+                    sess = elem[1][0]
                     if isinstance(sess, Choice):
                         last_choice_index = i
                         break

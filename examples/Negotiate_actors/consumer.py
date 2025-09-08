@@ -12,7 +12,7 @@ import time # to keep console opened for a bit after code is finished
 import json
 import argparse
 
-async def ws_client(port):
+async def ws_client(port:int):
     '''
     Handles connection and sends and receives payloads according to interaCtion with user.
     '''
@@ -23,7 +23,7 @@ async def ws_client(port):
         # Connect to the proxy/server
         async with websockets.connect(url) as ws:
             await ws.send(json.dumps("Consumer"))
-            msg = await ws.recv() # will get when all actors join
+            await ws.recv() # will get when all actors join
             print(f"All actors have joined. Initializing programm...")
             
             prop = input("Write a number to propose: ")
@@ -35,10 +35,9 @@ async def ws_client(port):
             while rec:
                 rec = False # will nit repeat unless explicictly stated
                 choice_one = json.loads(await ws.recv())
-                print(f"in consumer, received choice of branch from producer, {choice_one}, {type(choice_one)}") # debug
                 match choice_one:
                     case "accept":
-                        accept = json.loads(await ws.recv())
+                        json.loads(await ws.recv()) # accept
                         print("producer has said accepted")
                         p_contact = json.loads(await ws.recv())
                         print(f"Producer's name: {p_contact['name']}")
@@ -47,7 +46,7 @@ async def ws_client(port):
                         await ws.send(json.dumps("confirm"))
                         await ws.send(json.dumps(None)) 
                     case "reject":
-                        reject = json.loads( await ws.recv())
+                        json.loads( await ws.recv()) # reject
                     case "propose":
                         propose = json.loads(await ws.recv()) # int
                         print(f"Producer is offering {propose}. Accept? Write Yes, No, or Propose: ")
@@ -56,7 +55,7 @@ async def ws_client(port):
                             await ws.send(json.dumps(0))
                             # await asyncio.sleep(3)
                             await ws.send(json.dumps(None)) # accept
-                            confirm = json.loads(await ws.recv())
+                            json.loads(await ws.recv()) # confirm
                         elif user_accept == "No": # choose branch 1
                             await ws.send(json.dumps(1))
                             # await asyncio.sleep(3)
@@ -67,7 +66,9 @@ async def ws_client(port):
                             prop = input("Write a number to propose: ")
                             await ws.send(json.dumps(int(prop)))# propose
                             rec = True # continue X
-
+                    case _:
+                        print("Invalid choice from another actor.")
+                        raise
 
     except websockets.exceptions.ConnectionClosed:
         print(f"Connection lost")

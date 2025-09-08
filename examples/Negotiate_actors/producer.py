@@ -13,7 +13,7 @@ import json
 import argparse
 
  
-async def ws_client(port):
+async def ws_client(port:int):
     '''
     Handles connection and sends and receives payloads according to interaction with user.
     '''
@@ -46,7 +46,7 @@ async def ws_client(port):
                         }
                     await ws.send(json.dumps("contact"))
                     await ws.send(json.dumps(contact))
-                    confirm = json.loads(await ws.recv())
+                    json.loads(await ws.recv()) # confirm
                 elif user_accept == "No": # choose branch 1
                     # await asyncio.sleep(3)
                     await ws.send(json.dumps("reject"))
@@ -60,18 +60,21 @@ async def ws_client(port):
                     choice_two = json.loads(await ws.recv())
                     match choice_two:
                         case "accept":
-                            accept = json.loads(await ws.recv())
+                            json.loads(await ws.recv()) # accept
                             print("consumer has said accepted")
                             # await asyncio.sleep(3)
                             await ws.send(json.dumps("confirm"))
                             await ws.send(json.dumps(None))
                         case "reject":
                             # await asyncio.sleep(3)
-                            reject = json.loads(await ws.recv())
+                            json.loads(await ws.recv()) # reject
                         case "propose":
                             propose = json.loads(await ws.recv())
                             # await asyncio.sleep(3)
                             rec = True
+                        case _:
+                            print()
+                            raise
 
 
 
