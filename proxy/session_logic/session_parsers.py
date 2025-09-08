@@ -207,8 +207,7 @@ def scr_into_session(path_to_scr:str, error_mode:str) -> Session:
                             # -1 gets (Choice, Branch), so the [1] is to know in which Choice branch we are adding Sessions
                             doing_ses.alternatives[doing[-1][1]].append(Ref(name))
                         else:
-                            doing_ses.alternatives = []
-                            doing_ses.alternatives[0].append(Ref(name))
+                            doing_ses.alternatives.append([Ref(name)])
                 lines = lines[1:]
 
             # check if we move to different options in choice
