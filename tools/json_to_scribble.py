@@ -1,8 +1,10 @@
-import os # to find file
 from typing import Any
 
 # TODO: double-check but as there is no fixed type for JSON, use Any
-def json_to_scribble_func(proto:Any, schemas:tuple[dict[str, Any], dict[str, Any]]):
+
+
+
+def json_to_scribble_func(path:str, proto:Any, schemas:tuple[dict[str, Any], dict[str, Any]]):
     '''
     Creates a scr file with a global Scribble protocol based on a JSON describing said protocol.
 
@@ -10,75 +12,46 @@ def json_to_scribble_func(proto:Any, schemas:tuple[dict[str, Any], dict[str, Any
             proto(): the JSON body that describes the protocol
             schemas(): a dict* that contains all the custom types in a session (protocol) and the JSON schemas that describe them
     '''
-    lines:list[str] = []
-    # Use protocol name as module name
-    module_name = proto["protocol"]
-    lines.append(f"module {module_name};")
-    lines.append("")
 
-    # Add builtin type declarations
-    all_types = []
-    for schema in schemas[0].keys(): # for basic python types
-        all_types.append(f'type <builtin> "{schema}" from "builtin" as {schema};')
-    if schemas[1]: # there could be no custom types
-        for schema in schemas[1].keys(): # for custom types
-            all_types.append(f'type <custom> "{schema}" from "custom" as {schema};')
-    lines.extend(all_types)
-    lines.append("")
+    # create file and write to it
+    with open(f"{path}/{proto['protocol']}.scr", "w") as scr_file:
+        scr_file.write(f"module {proto['protocol']};\n\n") # module name
+        # write types
+        for a in schemas[0].keys(): # first default types
+            scr_file.write(f'type <builtin> "{a}" from "builtin" as {a};\n')
+        if (len(schemas) > 1): # then custom types, if any
+            for a in schemas[1].keys(): # first default types
+                scr_file.write(f'type <custom> "{a}" from "custom" as {a};\n')
+        scr_file.write('\n')
+        roles_str = ", ".join(f"role {r['name']} as {r['alias']}" for r in proto["roles"])
+        scr_file.write(f"global protocol {proto['protocol']}({roles_str})\n")
+        scr_file.write('{\n')
 
-    roles = ", ".join([f'role {r["name"]} as {r["alias"]}' for r in proto["roles"]])
-    lines.append(f'global protocol {proto["protocol"]}({roles})')
-    lines.append("{")
-    lines += walk_body(proto["body"], indent=1)
-    lines.append("}")
-    return "\n".join(lines)
-
-def walk_body(body, indent=1):
-    lines = []
-    ind = "\t" * indent
-    for item in body:
-        kind = item["kind"]
-        if kind == "message":
-            payload = f'({item["payload"]})' if item["payload"] else "()"
-            lines.append(f'{ind}{item["name"]}{payload} from {item["from"]} to {item["to"]};')
-        elif kind == "rec":
-            lines.append(f'{ind}rec {item["label"]} {{')
-            lines += walk_body(item["body"], indent+1)
-            lines.append(f'{ind}}}')
-        elif kind == "choice":
-            lines.append(f'{ind}choice at {item["at"]}')
-            lines.append(f'{ind}' + "{")
-            for idx, option in enumerate(item["options"]):
-                lines += walk_body(option, indent+1)
-                if idx < len(item["options"])-1:
-                    lines.append(f'{ind}}} or {{')
-            lines.append(f'{ind}}}')
-        elif kind == "continue":
-            lines.append(f'{ind}continue {item["label"]};')
-    return lines
-
-
-def transform(proto:Any, schemas:tuple[dict[str, Any], dict[str, Any]], output_dir:str):
-    '''
-    Creates a scr file with a global Scribble protocol based on a JSON describing said protocol.
-
-        Args:
-            proto(): the JSON body that describes the protocol
-            schemas(): a dict* that contains all the custom types in a session (protocol) and the JSON schemas that describe them
-            output_dir: where scr file we be stored at
-    '''
-    scribble_code = json_to_scribble_func(proto, schemas)
-    protocol_name = proto["protocol"]
-    file_name = f"{protocol_name}.scr"
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-        file_path = os.path.join(output_dir, file_name)
-    else:
-        file_path = file_name
-
-    # debug
-    with open(file_path, "w") as f:
-        f.write(scribble_code)
-    print(f"Scribble protocol written to {file_path}")
-    print("--- Scribble code ---")
-    print(scribble_code)
+        tabs = 3 # increase in threes?
+        def define_body(tabs:int, body:Any):
+            for b in body:
+                if b["kind"] == "message":
+                    scr_file.write(f'{" "*tabs}{b["name"]}({b["payload"]}) from {b["from"]} to {b["to"]};\n')
+                elif b["kind"] == "choice":
+                    scr_file.write(f'{" "*tabs}choice at {b["at"]}\n')
+                    scr_file.write(f'{" "*tabs}' + '{\n')
+                    tabs += 3
+                    options = b["options"]
+                    for i, opt in enumerate(options):
+                        if i:
+                            scr_file.write(f'{" "*(tabs - 3)}' + '} or {\n') # only or if it's not alst one; -3 because lined up with choice word
+                        define_body(tabs, opt)
+                    tabs -= 3
+                    scr_file.write(f'{" "*tabs}' + '}\n')
+                elif b["kind"] == "rec":
+                    scr_file.write(f'{" "*tabs}rec {b["label"]}' + ' {\n')
+                    tabs += 3
+                    define_body(tabs, b["body"])
+                    tabs -= 3
+                    scr_file.write(f'{" "*tabs}' + '}\n')
+                elif b["kind"] == "continue":
+                    scr_file.write(f'{" "*tabs}continue {b["label"]};\n')
+                
+        # recursively define the scr
+        define_body(tabs, proto["body"])
+        scr_file.write('}')

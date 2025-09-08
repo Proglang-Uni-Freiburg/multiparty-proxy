@@ -14,7 +14,7 @@ import os
 
 # functions in project
 from tools.get_port import get_free_port # for finding a free port for the proxy
-from tools.json_to_scribble import transform
+from tools.json_to_scribble import json_to_scribble_func
 from scribble_python.wf_checker import check_well_formedness, WellFormednessError # check Scribble protocol
 from proxy.session_logic.type_validation import create_type_checker # for payload type schemas
 
@@ -72,7 +72,7 @@ async def createMeetingReq(meeting: Meeting, request: Request):
 
     # one: transform to scr
     current_json = await request.json()
-    transform(current_json, types, output_dir="API/protocols") # TODO: add try block
+    json_to_scribble_func(path="API/protocols", proto=current_json, schemas=types) # TODO: add try block
     # join dicts of schemas of builtin and custom types into one dict
     merged_types = types[0].copy()
     merged_types.update(types[1])
