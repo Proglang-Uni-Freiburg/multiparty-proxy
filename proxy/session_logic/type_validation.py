@@ -60,7 +60,7 @@ def check_payload(msg:Any, expected:str, schema_dict:dict[str, Any]) -> bool:
         return False
         # raise jsonschema.ValidationError(f"Invalid data type! Expected type {expected} for {json.loads(msg)}")
     except Exception as e:
-        print(f"Something went wrong with the type validation {e}") # TODO: make proper exception
+        print(f"Something went wrong with the type validation {e}")
         raise e
 
 # debug/test

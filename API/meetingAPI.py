@@ -128,7 +128,5 @@ async def deleteMeetingReq(meeting_name: str):
     del meetingDict[meeting_name]
     del meeting_info[meeting_name]
     meeting_types.pop(meeting_name, None) # pop because it might be empty and pop doesn't throw error if so
-    os.remove(f"API/protocols/{meeting_name}.scr")
-    # return Response(status_code=status.HTTP_204_NO_CONTENT) # TODO: check success message is 200
 
 

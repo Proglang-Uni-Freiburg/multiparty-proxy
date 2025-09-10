@@ -1,0 +1,38 @@
+module Negotiate;
+
+type <builtin> "int" from "builtin" as int;
+type <builtin> "float" from "builtin" as float;
+type <builtin> "bool" from "builtin" as bool;
+type <builtin> "str" from "builtin" as str;
+type <builtin> "list" from "builtin" as list;
+type <builtin> "dict" from "builtin" as dict;
+type <builtin> "tuple" from "builtin" as tuple;
+type <builtin> "none" from "builtin" as none;
+type <custom> "contact" from "custom" as contact;
+
+global protocol Negotiate(role Consumer as C, role Producer as P)
+{
+   propose(int) from C to P;
+   rec X {
+      choice at P
+      {
+         accept() from P to C;
+         contact(contact) from P to C;
+         confirm() from C to P;
+      } or {
+         reject() from P to C;
+      } or {
+         propose(int) from P to C;
+         choice at C
+         {
+            accept() from C to P;
+            confirm() from P to C;
+         } or {
+            reject() from C to P;
+         } or {
+            propose(int) from C to P;
+            continue X;
+         }
+      }
+   }
+}

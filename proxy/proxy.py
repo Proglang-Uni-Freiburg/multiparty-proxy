@@ -1,7 +1,6 @@
 # websockets imports
 import websockets
 from websockets.legacy.server import WebSocketServerProtocol, serve # for websockets server
-# from websockets.legacy.client import WebSocketClientProtocol # for websockets client # TODO: see if we use this
 
 # to be able to use modules from other files in the project
 import sys
@@ -29,7 +28,7 @@ async def receiving_queue(actor: str, ws:WebSocketServerProtocol,
     Creates and enables access to a queue where all messages received from an actor through their websocket are stored.
 
         Args:
-            actor(str): name of the session actor #TODO: what was formal name of actor in Scribble?
+            actor(str): name of the session actor
             ws(): websocket linked with said actor
             queue: queue object with which messages are stored and received
     '''
@@ -37,7 +36,7 @@ async def receiving_queue(actor: str, ws:WebSocketServerProtocol,
         async for msg in ws: # does ws.recv() and extracts message from it
             await queue.put(msg)
     except Exception as e:
-        print(f"Problem with receiving queue for {actor}: {e}") # TODO: raise instead of print
+        print(f"Problem with receiving queue for {actor}: {e}")
 
 async def sending_queue(actor: str, ws:WebSocketServerProtocol,
                       queue: asyncio.Queue[Any]):
@@ -47,7 +46,7 @@ async def sending_queue(actor: str, ws:WebSocketServerProtocol,
     WARNING: They are however not sent; we properly send them in the session handler.
 
         Args:
-            actor(str): name of the session actor #TODO: what was formal name of actor in Scribble?
+            actor(str): name of the session actor
             ws(): websocket linked with said actor
             queue: queue object with which messages are stored
     '''
@@ -55,7 +54,7 @@ async def sending_queue(actor: str, ws:WebSocketServerProtocol,
         while True:
             await queue.get()
     except Exception as e:
-        print(f"Problem with sending queue for {actor}: {e}") # TODO: raise instead of print
+        print(f"Problem with sending queue for {actor}: {e}")
 
 
 # -- actor logic for a meeting -------------------------------------------------------------------------------------------
@@ -124,7 +123,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_s
             raise e
 
         # make receiving queue
-        actor_alias = next(alias for name, alias in actors_complete if name == actor_name) # TODO: maybe declare aliases at start or even before the handler, in main
+        actor_alias = next(alias for name, alias in actors_complete if name == actor_name)
         recv_task = asyncio.create_task(receiving_queue(actor_alias, clientSocket, incoming_queues[actor_alias])) # so that the receiving queue can use the websockets recv function
         recv_tasks_dict[actor_name] = recv_task
         
@@ -133,11 +132,11 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_s
             all_connected_evt.set()
         # wait for everybody
         await all_connected_evt.wait()
-        await clientSocket.send(json.dumps("502: All actors have joined session.")) # TODO: change depending on error definitions
+        await clientSocket.send(json.dumps("All actors have joined the session."))
 
         # start tracking session
-        # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases -> should probaly do in main proxy instead of actor handler
-        alias_slots = {alias: actor_slots[name] for name, alias in actors_complete} # TODO: change this maybe, see above
+        # first, make actor - socket list actually be a list of ALIASES - socket because protocol tracks aliases
+        alias_slots = {alias: actor_slots[name] for name, alias in actors_complete}
         try:
             await handle_session(actor_alias, actor_ses, alias_slots, incoming_queues,
                                  outgoing_queues, types, error_mode, timeout) # def session + action name
@@ -179,7 +178,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_s
         return
     
     # handle ok disconnections
-    except (websockets.ConnectionClosed, websockets.ConnectionClosedError, websockets.ConnectionClosedOK): # TODO: fix ConenctionClosed positional arguments
+    except (websockets.ConnectionClosed, websockets.ConnectionClosedError, websockets.ConnectionClosedOK):
         print(f"An error has been encountered in {actor_name} and its connection was closed.")
     except (SchemaValidationError) as e: # TODO: raise inside handler
         print(f"Type mismatch {e} in {actor_name}. Actor dsiconnected.")
@@ -208,7 +207,6 @@ async def main_proxy(proxy_port:int, actors_complete:list[tuple[str, str]], prot
     # with open(f'proxy/protocols/{protocol_name}/{proxy_port}_log.txt', 'w') as file: # meetingName_port
         # sys.stdout = file  # Redirect output to file
 
-    #TODO: do try and clean up maybe
     print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
     # separate actors and aliases
     actors = [elem[0] for elem in actors_complete]

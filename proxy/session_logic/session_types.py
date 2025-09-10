@@ -3,7 +3,7 @@ from dataclasses import dataclass # so that @dataclass(frozen=true) can be used
 # -- define session components "dir" and "label" --------------------------------------------------------------------------
 class Dir:
     def __init__(self, dir: str):
-        self.dir = dir # TODO: make only "to" and "from"
+        self.dir = dir
 
     # to make it work with session to string parser
     def __str__(self):
