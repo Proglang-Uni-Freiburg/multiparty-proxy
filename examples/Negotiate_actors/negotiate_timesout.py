@@ -35,6 +35,7 @@ async def send_requests():
                 { "name":"Consumer", "alias":"C" },
                 { "name":"Producer", "alias":"P" }
             ],
+            "timeout": 20.0,
             "body": [
                 { "kind":"message",  "name":"propose", "from":"C","to":"P","payload":"int" },
                 {
@@ -83,7 +84,7 @@ if __name__ == "__main__":
 
     # run producer actor code
     subprocess.Popen(
-        [sys.executable, "-m", "producer", "-p", str(port)],
+        [sys.executable, "-m", "producer_timesout", "-p", str(port)],
         cwd=project_root,
         creationflags=subprocess.CREATE_NEW_CONSOLE,
     )
