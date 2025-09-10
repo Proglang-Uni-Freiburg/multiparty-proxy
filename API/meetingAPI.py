@@ -112,9 +112,8 @@ async def getMeetingReq(meeting_name:str) -> int:
     return meeting_info[meeting_name]
 
 # allows definition of JSON schemas for types used in a meeting
-# TODO:for now schemas one by one but later as a batch
 @app.post("/types/{meeting_name}/")
-async def createType(meeting_name: str, schema:Mapping[str, Any]= Body(...)): # TODO: why Any?
+async def createType(meeting_name: str, schema:Mapping[str, Any]= Body(...)):
     print(f"defining: {schema.get('title')} for {meeting_name}") # debug
     if meeting_name not in meeting_types: # for first custom schema in a meeting
         meeting_types[meeting_name] = []
@@ -130,14 +129,6 @@ async def deleteMeetingReq(meeting_name: str):
     del meeting_info[meeting_name]
     meeting_types.pop(meeting_name, None) # pop because it might be empty and pop doesn't throw error if so
     os.remove(f"API/protocols/{meeting_name}.scr")
-    return Response(status_code=status.HTTP_204_NO_CONTENT) # TODO: check this is the right thing to return
+    # return Response(status_code=status.HTTP_204_NO_CONTENT) # TODO: check success message is 200
 
-# TODO: determine if this is necessary
-"""
-@app.get("/meetings/{meeting_id}/{actors}", response_model=str)
-async def getMeetingReq(meeting_id:str) -> str:
-    if meeting_id not in meetingDict:
-        raise HTTPException(404, "Not found")
-    return "" # temporary; return local protocol projection
-"""
 
