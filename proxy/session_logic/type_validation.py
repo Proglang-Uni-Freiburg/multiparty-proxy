@@ -173,19 +173,3 @@ protocol_schema = json.loads(r'''{
 
 }
 ''')
-
-# debug/test
-"""
-if __name__ == "__main__":
-    types = create_type_checker([])
-    temp_dict = {}
-    temp_dict["entry"] = 1
-    # trying basic types checker
-    print(check_payload(json.dumps(4), "int", types)) # int
-    print(check_payload(json.dumps(5.7), "float", types)) # float
-    print(check_payload(json.dumps(True), "bool", types)) # bool
-    print(check_payload(json.dumps("bla"), "str", types)) # string
-    print(check_payload(json.dumps((5, 6)), "tuple", types)) # tuple
-    print(check_payload(json.dumps(["hi", False]), "list", types)) # list
-    print(check_payload(json.dumps(temp_dict), "dict", types)) # dict
-"""
