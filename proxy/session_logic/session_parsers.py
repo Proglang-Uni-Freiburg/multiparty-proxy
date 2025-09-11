@@ -16,7 +16,8 @@ def scr_into_session(path_to_scr:str, error_mode:str) -> Session:
     Creates a Session object based on a projected Scribble local protocol.
 
         Args:
-            path_to_scr(): the path to the scr file that contains the Scribble local protocol to be parsed
+            path_to_scr(str): the path to the scr file that contains the Scribble local protocol to be parsed
+            error_mode(str): to pass unto some sessions in order to indicate if errors should be noted
 
         Returns:
             A Session object, that might have other sessions chained by using the sessions' 'cont' property.
@@ -52,7 +53,6 @@ def scr_into_session(path_to_scr:str, error_mode:str) -> Session:
                 lines = lines[1:]
                 continue
 
-            # TODO: Find a way to make code shorter, as some things are repeated a lot
             # choice
             elif line.startswith("choice"):
                 pattern = r"choice at (\w+)"
@@ -74,7 +74,6 @@ def scr_into_session(path_to_scr:str, error_mode:str) -> Session:
                     elif isinstance(doing[-1][0], Rec): # if inside a rec
                         doing[-1][0].actions.append(current_choice)
                     else: # else doing[-1][0] will be a choice!
-                        # TODO: better explanation of this process
                         choice = doing[-1][0]
                         branch = doing[-1][1]
 
@@ -252,13 +251,9 @@ def scr_into_session(path_to_scr:str, error_mode:str) -> Session:
         raise ParsingError
     
     
-# -- define custom exceptions for parsing errors ------------------------------------------------------------------------------------
+# -- define custom exception for parsing errors ------------------------------------------------------------------------------------
 class ParsingError(Exception):
     """Exception raised for errors in parsing"""
     def __init__(self, message:str="Parsing failed"):
         self.message = message
         super().__init__(self.message)
-
-# for debugging
-# if __name__ == "__main__":
-#    print(scr_into_session(r"C:\Users\andre\Documents\Uni_Freiburg\SS_25\Bachelorarbeit\multiparty-proxy\proxy\protocols\Negotiate\Consumer.scr\Negotiate_Negotiate_Consumer.scr"))

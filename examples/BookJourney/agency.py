@@ -48,7 +48,7 @@ async def ws_client(port:int):
                     else:
                         print(f"Customer is asking for {query}")
                         await ws.send(json.dumps("price"))
-                        await ws.send(json.dumps(cities[query])) # send price to C; TODO: adjust to make sense
+                        await ws.send(json.dumps(cities[query])) # send price to C
                         await ws.send(json.dumps("info"))
                         await ws.send(json.dumps("Sent info to you, S")) # send info to S
                     # from here back to loop
@@ -73,8 +73,6 @@ async def ws_client(port:int):
 
     except websockets.exceptions.ConnectionClosed:
         print(f"Connection lost")
-    #except ProxyError as e:
-        #print(e)
     except Exception as e:
         print(f"Unexpected error {e}")
     finally:

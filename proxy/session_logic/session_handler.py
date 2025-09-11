@@ -3,16 +3,15 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent))
 
-
+# import modules from other files
 from session_types import *
 from type_validation import *
 
 # websockets imports
 from websockets.legacy.server import WebSocketServerProtocol # for websockets server websocket
-# from websockets import ClientProtocol # for websockets client
 
 # other imports
-from typing import Any
+from typing import Any # for type annotations
 import json
 import asyncio # for timeouts
 
@@ -25,11 +24,13 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
 
         Args:
             name (str): Name of the actor the session belongs to
-            ses (Session):
-            actor_list (): __ that allows us to retrieve the websocket that belongs to a specific actor in the meeting
-            recv_queues: queue function* that stores messages received by proxy and sent by a specific actor
-            send_queues: ___ queue __ that stores all emssages too be sent to an actor
-            types (dict): dict with all the json schemas referenced by type name, for checking the payload adheres to the defined type at runtime
+            ses (Session): Session or sessions tied by the "cont" property 
+            actor_list (dict[str, WebSocketServerProtocol|None]): has information which socket is used to send or receive messages from a specific actor
+            recv_queues (dict[str, asyncio.Queue[Any]]): dictionary of queues related to actors, where all message received from actor are and can be retrieved
+            send_queues (dict[str, asyncio.Queue[Any]]): dictionary of queues that store all emssages to be sent to a specific actor
+            types (dict[str, Any]): dictionary with all the json schemas referenced by type name, for checking the payload adheres to the defined type at runtime
+            error_mode(str): fatal, ignore or handle, for deciding what to do in case of an error 
+            timeout(float): max number of seconds waiting for an actor
 
         Returns:
             An End session, once it goes through all the other sessions.
@@ -51,14 +52,14 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
             match (actual_session):
                 # -- Message sessions ---------------------------------------------------------------------------------------------------------------------------------
                 case (Message()):
-                    print(f"action name {actual_session.label}") # debug
+                    print(f"In {name}, message name {actual_session.label}") # debug
                     match (actual_session.dir.dir):
                         case ("from"): # receive message from someone else
                             try:
                                 msg = await send_queues[name].get()  # get message from queue
 
                                 ok_payload = check_payload(msg, actual_session.payload, types)
-                                print(f"checking payload in to") # debug
+                                print(f"Payload validation for {name}, {actual_session.label}, direction 'to': {ok_payload}") # debug
                                 # if payload validation failed
                                 if not ok_payload:
                                     print(f"Schema validation error at {actual_session.label.label}, expected type {actual_session.payload}") # debug
@@ -83,14 +84,13 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                                     # receive message, handle timeouts
                                     try:
                                         msg_name = json.loads(await asyncio.wait_for(recv_queues[name].get(), timeout=timeout))
-                                        # msg_name = await recv_queues[name].get()
                                     except asyncio.TimeoutError:
                                         if error_mode == "fatal":
                                             raise Timeout()
                                         elif error_mode == "handle" and not error: # set error if mode is not "ignore"
                                             error = "timeout"
                                         
-
+                                # if message name does not match that of the protocol
                                 coincides = (msg_name == actual_session.label.label)
                                 if not coincides:
                                     print(f"Wrong label at {actual_session.label.label}, got message name {msg_name}") # debug
@@ -100,8 +100,8 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                                         error = "wrongLabel"
 
                                 msg = await recv_queues[name].get()  # get message from sender
-                                ok_payload = check_payload(msg, actual_session.payload, types)
-                                print(f"checking payload in from") # debug
+                                ok_payload = check_payload(msg, actual_session.payload, types) # check payload type
+                                print(f"Payload validation for {name}, {actual_session.label}, direction 'from': {ok_payload}") # debug
 
                                 # if payload validation failed
                                 if not ok_payload:
@@ -111,7 +111,6 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                                     elif error_mode == "handle" and not error: # set error if mode is not "ignore"
                                         error = "wrongPayload"
                                 
-                                print(f"{name} setting {msg_name}: {json.loads(msg)} for {actual_session.actor}")
                                 await send_queues[actual_session.actor].put(msg)  # queue message for recipient (so we can send it to it when it is ready)
                                 print(f"Message sent by {name} to {actual_session.actor}") # debug
                             except (SchemaValidationError, Timeout, WrongLabelError) as e:
@@ -131,8 +130,7 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
 
                             # report back if errors happened
                             if error_mode == "handle":
-                                print(f"{name} checking for errors...") # debug
-                                print(f"{error}")
+                                print(f"{name} checking for errors. Error? {error}") # debug
                                 branch = None
                                 if error:
                                     if error in actual_session.errors:
@@ -166,7 +164,7 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                                         if isinstance(elem, Message):
                                             if elem.label.label == branch:
                                                 choice_idx = i
-                                                break # TODO: breaks only for?? check
+                                                break
                                     await send_queues[act].put(json.dumps(choice_idx))     
                             doing.append(actual_session) # mark that you're carrying out choice session
 
@@ -174,8 +172,8 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                         else:
                             choice_idx = json.loads(await send_queues[name].get()) # branch will be waiting in queue, will be an index 
                             doing.append(actual_session) # mark that you're carrying out choice session
-                            print(f"{name} choice_idx = {choice_idx}")
-                            # if you branched to a choice, then send label to actor later (because you won't know until after)
+                            print(f"{name} choice branch index = {choice_idx}")
+                            # if you branched to a choice, then send index to actor later (because you won't know until after)
                             # but if you branched to message or rec, send name of THOSE to actor! 
                             socket = actor_list[name]
                             if isinstance(socket, WebSocketServerProtocol): # so type checker can make sure we can send because it is a socket
@@ -184,7 +182,7 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                                     if isinstance(first_ses, (Message, Rec)):
                                         print(f"actor {name} is supposed to get action label now")
                                         await socket.send(json.dumps(first_ses.label.label))
-                                    elif isinstance(first_ses, Ref): # TODO: is this ok? ref vs rec in this case
+                                    elif isinstance(first_ses, Ref):
                                         await socket.send(json.dumps(first_ses.name))
                         
                         # set for both cases
@@ -222,7 +220,6 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
             # if it is the last action in rec or choice, do next session (cont) of rec/choice and close said rec/choice
             if not actual_session: # if actual session is None; a next cont indicates for choice and rec that their list of actions is over and we might close them
                 actual_session = doing[-1].cont
-                # print(f"replacing None ses with {type(doing[-1].cont)} from {type(doing[-1])} for actor {name}") # comment out to debug
                 doing.pop()
 
         return End() # only returned when session is end

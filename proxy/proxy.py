@@ -17,10 +17,10 @@ from proxy.session_logic.type_validation import *
 import json
 import asyncio # for creating asynchronous tasks, events, queues, etc.
 import httpx # for sending API requests
-# import shutil # to erase scr files of protocol once meeting is done
-import os
-from typing import Optional
+from typing import Optional # for type annotations
 
+# for logging file
+import os
 import builtins, functools
 print = functools.partial(builtins.print, flush=True)
 
@@ -32,8 +32,8 @@ async def receiving_queue(actor: str, ws:WebSocketServerProtocol,
 
         Args:
             actor(str): name of the session actor
-            ws(): websocket linked with said actor
-            queue: queue object with which messages are stored and received
+            ws(WebSocketServerProtocol): websocket linked with said actor
+            queue(asyncio.Queue[Any]): queue object with which messages are stored and received
     '''
     try:
         async for msg in ws: # does ws.recv() and extracts message from it
@@ -41,7 +41,7 @@ async def receiving_queue(actor: str, ws:WebSocketServerProtocol,
     except Exception as e:
         print(f"Problem with receiving queue for {actor}: {e}")
 
-async def sending_queue(actor: str, ws:WebSocketServerProtocol,
+async def sending_queue(actor: str,
                       queue: asyncio.Queue[Any]):
     '''
     Creates and enables access to a queue where all messages to be sent to the actor are stored.
@@ -50,8 +50,7 @@ async def sending_queue(actor: str, ws:WebSocketServerProtocol,
 
         Args:
             actor(str): name of the session actor
-            ws(): websocket linked with said actor
-            queue: queue object with which messages are stored
+            queue(asyncio.Queue[Any]): queue object with which messages are stored
     '''
     try:
         while True:
@@ -68,7 +67,7 @@ def project_actors(actors:list[str], protocol_name: str):
 
         Args:
             actors(list[str]): list of names of actors in protocol
-            protocol_name(name): name of protocol (aka meeting) so we can locate its scr in the API folder
+            protocol_name(str): name of protocol (aka meeting) so we can locate its scr in the API folder
     '''
     for a in actors:
         project_protocol(
@@ -86,20 +85,20 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_s
     When a socket connects to proxy, check if they want to connect as an actor in the meeting, then initialize and handle a session for said actor.
 
         Args:
-            clientSocket(): actor socket that is connected to the proxy
-            path(): needed to use proxy in "serve" mode
-            actor_slots(dict): dict with whcih one can find the websockets port assigned to an actor (actor: port)
-            actors_complete(): list of all actors along with their aliases (the shortened version of
+            clientSocket(WebSocketServerProtocol): actor socket that is connected to the proxy
+            path(str): needed to use proxy in "serve" mode
+            actor_slots(dict): dictionary with whcih one can find the websockets port assigned to an actor (actor: port)
+            actors_complete(list[tuple[str, str]]): list of all actors along with their aliases (the shortened version of
                 their names that is used in the projected Scribble protocol)
             protocol_name(str): name of the protocol (aka meeting) the proxy is regulating
-            incoming_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
-            outgoing_queues(): find a receiving queue of an actor by looking up their alias (alias: queue)
-            types: JSON schemas of all the types, referenced by the name of the type
-            all_connected_evt(): event that lets handler know when all actors have joined the meeting and the sessions can start
-            all_done_evt():
-            recv_tasks_dict
-            error_mode(str):
-            timeout(float):
+            incoming_queues(dict[str, asyncio.Queue[Any]]): find a receiving queue of an actor by looking up their alias (alias: queue)
+            outgoing_queues(dict[str, asyncio.Queue[Any]]): find a sending queue of an actor by looking up their alias (alias: queue)
+            types(dict[str, Any]): JSON schemas of all the types, referenced by the name of the type
+            all_connected_evt(asyncio.Event): event that lets handler know when all actors have joined the meeting and the sessions can start
+            all_done_evt(asyncio.Event): event that lets handler know when all actors have disconnected
+            recv_tasks_dict(dict[str, asyncio.Task[Any]|None]): dict of alias <-> receiving queue tasks, to cancel them if necessary from another actor's handler
+            error_mode(str): fatal, ignore or handle; to pass onto session and handler so errors can be treated accordingly
+            timeout(float): max number of seconds to wait for an actor
     '''
     actor_name: Optional[str] = None # initialize
 
@@ -198,14 +197,16 @@ async def main_proxy(proxy_port:int, actors_complete:list[tuple[str, str]], prot
 
         Args:
             proxy_port(int): number of the port the proxy is serving from
-            actors_complete(): __ of actors and their aliases
+            actors_complete(list[tuple[str, str]]): list of actors and their aliases
             protocol_name(str): Name of protocol (meeting)
-            types(): all payload types that will come up in the meeting along with their JSON schemas
+            types(dict[str, Any]): all payload types that will come up in the meeting along with their JSON schemas
+            error_mode(str): fatal, ignore or handle; to pass onto session and handler so errors can be treated accordingly
+            timeout(float): max number of seconds to wait for an actor
     '''
     # redirect print statements to logging file
     if not os.path.exists(f'proxy/protocols/{protocol_name}'):
         os.makedirs(f'proxy/protocols/{protocol_name}')
-    with open(f'proxy/protocols/{protocol_name}/{proxy_port}_log.txt', 'w', buffering=1) as file: # meetingName_port
+    with open(f'proxy/protocols/{protocol_name}/{proxy_port}_log.txt', 'w', buffering=1) as file:
         # for logging
         sys.stdout = sys.stderr = file
 
@@ -242,7 +243,7 @@ async def main_proxy(proxy_port:int, actors_complete:list[tuple[str, str]], prot
                 # once all actors are joined
                 await all_joined_evt.wait()
                 print("All actors connected. Starting the meeting...")
-                # await asyncio.Future() # so that server doesn't close
+                
                 # close proxy gracefullly
                 await all_done_evt.wait() # close proxy once all actors are disconnected
                 print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")

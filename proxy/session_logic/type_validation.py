@@ -9,13 +9,14 @@ from typing import Any
 # JSON defined as Any as there is no proper definition in Python
 def create_type_checker(schema_list:list[Any]|None)-> tuple[dict[str, Any], dict[str, Any]]:
     '''
-    Creates a dict of JSON schemas (type_name: json_schema) against which a session can check payload types comply.
+    Creates a dict of JSON schemas against which a session can later check payload types comply.
 
         Args:
-            schema_list(): list of schemas defined by the user, if any
+            schema_list(list[Any]|None): list of schemas defined by the user, if any
 
         Returns:
-            A tuple of type :schema dicts. The first dict is for builtin basic python types and the seconf for custom schemas that are sent to the API.
+            A tuple of two schema dictionaries. The first dict is for builtin basic
+            python types and the second for custom schemas that are sent to the API.
     '''
     
     # initialize dicts
@@ -44,9 +45,9 @@ def check_payload(msg:Any, expected:str, schema_dict:dict[str, Any]) -> bool:
     Checks if a payload is of the expected type.
 
         Args:
-            msg(): payload whose type we want to check
-            expected(): name of the type the session expects the payload to be
-            schema_dict(dict): contains all JSON schemas referenced by type
+            msg(Any): payload whose type we want to check
+            expected(str): name of the type the session expects the payload to be
+            schema_dict(dict[str, Any]): contains all JSON schemas referenced by name
 
         Returns:
             True if the payload is of the expected type, False if it isn't.

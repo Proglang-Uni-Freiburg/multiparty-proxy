@@ -25,10 +25,9 @@ class Session:
 @dataclass
 class Message(Session):
     def __init__(self, dir:Dir, name:Label, actor:str, payload:str, cont:Session|None):
-        #!: some messages might have the same name but be from/to different actors amd have different payloads
         super().__init__("message")
         self.label = name
-        self.dir = dir
+        self.dir = dir # to or from
         self.actor = actor # other actor with which interaction happens
         self.payload = payload
         self.cont = cont
@@ -41,8 +40,8 @@ class Choice(Session):
         self.actor = actor # actor that chooses which branch to take
         self.alternatives = alternatives
         self.cont = cont
-        self.actors_involved = actors_involved # initialize and will later be rewritten
-        self.errors = errors
+        self.actors_involved = actors_involved # initialize and will later be rewritten; to know in session handler who to send chosen branch to
+        self.errors = errors # to know which branches you can take if there are any errors and error mode is handle
 
     def update_conts(self):
         """
@@ -60,6 +59,9 @@ class Choice(Session):
                         item_indexed.cont = item[i+1]
     
     def update_actors_involved(self):
+        """
+        Notes all actors that are mentioned in any session in the alteratives, to later know who to send choice to.
+        """
         actors:list[str] = []
         for item in self.alternatives:
             for i in item:
@@ -69,6 +71,9 @@ class Choice(Session):
         self.actors_involved = actors
 
     def update_error_handling(self):
+        """
+        Know if there are in branches that suggest what to do in case of an error.
+        """
         errors_handled:list[str] = []
         for item in self.alternatives:
             elem = item[0]
@@ -138,4 +143,7 @@ class Timeout(Exception):
 
 # for general errors in session
 class SessionError(Exception):
-    pass
+    """Error in session"""
+    def __init__(self, message:str="Client has timed out"):
+        self.message = message
+        super().__init__(self.message)

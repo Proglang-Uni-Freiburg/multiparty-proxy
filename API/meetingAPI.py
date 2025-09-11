@@ -78,7 +78,7 @@ async def createMeetingReq(meeting: Meeting, request: Request):
     types = create_type_checker(schemas) # all type schemas we'll need for types in protocol
 
     # one: transform to scr
-    json_to_scribble_func(path="API/protocols", proto=current_json, schemas=types) # TODO: add try block
+    json_to_scribble_func(path="API/protocols", proto=current_json, schemas=types)
     # join dicts of schemas of builtin and custom types into one dict
     merged_types = types[0].copy()
     merged_types.update(types[1])

@@ -49,13 +49,11 @@ async def ws_client(port:int):
                     print("Customer has rejected.")
                     break
                 elif next == "timeout":
-                    json.loads(await ws.recv()) # timeout; TODO: print messsage?
+                    json.loads(await ws.recv())
                     print(f"There was a timeout. Trying again...")
 
     except websockets.exceptions.ConnectionClosed:
         print(f"Connection lost")
-    #except ProxyError as e:
-        #print(e)
     except Exception as e:
         print(f"Unexpected error {e}")
     finally:

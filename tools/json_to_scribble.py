@@ -1,16 +1,13 @@
-from typing import Any
-
-# TODO: double-check but as there is no fixed type for JSON, use Any
-
-
+from typing import Any # for type annotation
 
 def json_to_scribble_func(path:str, proto:Any, schemas:tuple[dict[str, Any], dict[str, Any]]):
     '''
     Creates a scr file with a global Scribble protocol based on a JSON describing said protocol.
 
         Args:
-            proto(): the JSON body that describes the protocol
-            schemas(): a dict* that contains all the custom types in a session (protocol) and the JSON schemas that describe them
+            path(str): path to protocols folder in proxy
+            proto(Any): the JSON body that describes the protocol
+            schemas(tuple[dict[str, Any]): a tuple of dicts that contain the schemas of the built in and custom schema types
     '''
 
     # create file and write to it
@@ -27,7 +24,7 @@ def json_to_scribble_func(path:str, proto:Any, schemas:tuple[dict[str, Any], dic
         scr_file.write(f"global protocol {proto['protocol']}({roles_str})\n")
         scr_file.write('{\n')
 
-        tabs = 3 # increase in threes?
+        tabs = 3 # increase
         def define_body(tabs:int, body:Any):
             for b in body:
                 if b["kind"] == "message":

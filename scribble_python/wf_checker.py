@@ -15,7 +15,7 @@ def check_well_formedness(scr_path: str) -> None:
     Checks a Scribble protocol is written correctly by using the official Scribble well-formedness checker code.
 
         Args:
-            scr_path(): where the scr file of the protocol we want to check can be found
+            scr_path(str): where the scr file of the protocol we want to check can be found
     '''
     old_argv = sys.argv.copy()
     try:
@@ -42,10 +42,10 @@ def project_protocol(
     Using the official Scribble code to project a protocol and create a scr file with the local protocol corresponding to a specific actor.
 
         Args:
-            scr_path(): where the scr file of the global protocol can be found
-            full_global(): name of the protocol we will write on the file, according to Scribble specifications
-            role(): name of the role of the actor for which we want to make a local protocol
-            output_dir(): where to write the scr file with the protocol to
+            scr_path(str): where the scr file of the global protocol can be found
+            full_global(str): name of the protocol we will write on the file, according to Scribble specifications
+            role(str): name of the role of the actor for which we want to make a local protocol
+            output_dir(str): where to write the scr file with the protocol to
     '''
     old_argv = sys.argv.copy()
     try:
@@ -62,6 +62,6 @@ def project_protocol(
         sys.argv[:] = old_argv
 
 
-class WellFormednessError(Exception): # TODO: write properly
+class WellFormednessError(Exception):
     """Raised when a Scribble protocol is not well-formed."""
     pass
