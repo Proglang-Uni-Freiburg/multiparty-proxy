@@ -1,0 +1,65 @@
+Starting proxy for protocol Negotiate in port 57250...
+In meeting Negotiate: waiting for all actors to join...
+In meeting Negotiate: Producer joined the meeting.
+In meeting Negotiate: Consumer joined the meeting.
+carrying out ses Message() for C
+In C, message name Label(label='propose')
+All actors connected. Starting the meeting...
+carrying out ses Message() for P
+In P, message name Label(label='propose')
+checking int for 7
+Payload validation for C, Label(label='propose'), direction 'from': True
+Message sent by C to P
+carrying out ses Rec() for C
+carrying out ses Choice() for C
+checking int for 7
+Payload validation for P, Label(label='propose'), direction 'to': True
+Message received by P, sent by C
+carrying out ses Rec() for P
+carrying out ses Choice() for P
+in P, waiting for non-error action label
+P, got branch accept
+choice of P, chose branch accept
+sending branch decision from P to C
+carrying out ses Message() for P
+In P, message name Label(label='accept')
+C choice branch index = 0
+actor C is supposed to get action label now
+carrying out ses Message() for C
+In C, message name Label(label='accept')
+checking none for None
+Payload validation for P, Label(label='accept'), direction 'from': True
+Message sent by P to C
+carrying out ses Message() for P
+In P, message name Label(label='contact')
+checking none for None
+Payload validation for C, Label(label='accept'), direction 'to': True
+Message received by C, sent by P
+carrying out ses Message() for C
+In C, message name Label(label='contact')
+checking contact for {'name': 'Alice', 'email': 'alice@gmail.com'}
+Payload validation for P, Label(label='contact'), direction 'from': True
+Message sent by P to C
+carrying out ses Message() for P
+In P, message name Label(label='confirm')
+checking contact for {'name': 'Alice', 'email': 'alice@gmail.com'}
+Payload validation for C, Label(label='contact'), direction 'to': True
+Message received by C, sent by P
+carrying out ses Message() for C
+In C, message name Label(label='confirm')
+checking none for None
+Payload validation for C, Label(label='confirm'), direction 'from': True
+Message sent by C to P
+carrying out ses None for C
+Consumer's session ended without a problem 
+checking none for None
+Payload validation for P, Label(label='confirm'), direction 'to': True
+Message received by P, sent by C
+carrying out ses None for P
+Producer's session ended without a problem 
+All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...
+Consumer's session is finished and the actor has been disconnected from the session.
+Producer's session is finished and the actor has been disconnected from the session.
+Deleting meeting Negotiate...
+Successfully deleted meeting Negotiate from API
+Stopped serving

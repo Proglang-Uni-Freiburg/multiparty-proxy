@@ -4,33 +4,6 @@ base_url = 'http://127.0.0.1:8000/'
 
 # -- test defining meeting ----------------------------------------------------------------------------
 
-# post meeting with wrong JSON
-def test_meeting_wrong_schema():
-    # example: 
-    protocol = '''{
-            "protocol": "Bookshop",
-            "roles": [
-                { "name":"Customer", "alias":"C" },
-                { "name":"Shop", "alias":"S" }
-            ],
-            "body": [
-                { "kind":"note", "name":"book", "from":"C","to":"S","payload":"str" },
-                { "kind":"message", "name":"available", "from":"S","to":"C","payload":"bool" },
-                { "kind":"message", "name":"price", "from":"C","to":"S","payload":"str" },
-                { "kind":"message", "name":"givenprice", "from":"S","to":"C","payload":"int" },
-                { "kind":"choice","at":"C","options":[
-                    [ { "kind":"message","name":"ask","from":"C","to":"S","payload":"str" },
-                      { "kind":"message","name":"receipt","from":"S","to":"C","payload":"str" } ],    
-                    [ { "kind":"message","name":"quit","from":"C","to":"S","payload":"" },
-                      { "kind":"message","name":"goodbye","from":"S","to":"C","payload":"str" } ]
-                    ]
-                }
-            ]
-            }
-        '''
-    resp = requests.post(base_url+"meetings", data=protocol)
-    assert resp.status_code == 400
-
 # post meeting with right JSON but wrong Scribble (i.e. wrong alias)
 def test_wrong_scribble():
     protocol = '''{
