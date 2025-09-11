@@ -104,60 +104,74 @@ protocol_schema = json.loads(r'''{
   "required": [ "roles", "body" ],
   "additionalProperties": false,
   "$defs": {
-	  "forbiddenNames": { "enum": ["timeout", "error", "wrongPayload", "wrongLabel"] },
-    "session": {
-	    "type": "object",
-	    "oneOf": [
-		    { "$ref": "#/$defs/message" },
-		    { "$ref": "#/$defs/rec" },
-		    { "$ref": "#/$defs/continue" },
-		    { "$ref": "#/$defs/choice" }
-		  ]
+  "forbiddenNames": { "enum": ["timeout", "error", "wrongPayload", "wrongLabel"] },
+
+  "session": {
+    "type": "object",
+    "oneOf": [
+      { "$ref": "#/$defs/message" },
+      { "$ref": "#/$defs/rec" },
+      { "$ref": "#/$defs/continue" },
+      { "$ref": "#/$defs/choice" }
+    ]
+  },
+
+  "message": {
+    "type": "object",
+    "properties": {
+      "kind": { "const": "message" },
+      "name": { "type": "string", "not": { "$ref": "#/$defs/forbiddenNames" } },
+      "from": { "type": "string" },
+      "to":   { "type": "string" },
+      "payload": { "type": "string" }
     },
-    "message": {
-		  "type": "object",
-		  "properties": {
-				"kind": { "const": "message" },
-				"name": { "type": "string", "not": { "$ref": "#/$defs/forbiddenNames" } },
-				"from": { "type": "string" },
-				"to": { "type": "string" },
-				"payload": { "type": "string" }
-		  }
-	  },
-	  "choice": {
-		  "type": "object",
-		  "properties": {
-				"kind": { "const": "choice" },
-				"at": { "type": "string" },
-				 "options": {
+    "required": ["kind", "name", "from", "to", "payload"],
+    "additionalProperties": false
+  },
+
+  "choice": {
+    "type": "object",
+    "properties": {
+      "kind": { "const": "choice" },
+      "at": { "type": "string" },
+      "options": {
+        "type": "array",
+        "items": {
           "type": "array",
-          "items": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/session" }
-          }
-         }
-       }
-		 },
-		 "rec": {
-		  "type": "object",
-		  "properties": {
-				"kind": { "const": "rec" },
-				"name": { "type": "string", "not": { "$ref": "#/$defs/forbiddenNames" } },
-				"body": {
-		      "type": "array",
-		      "items": { "$ref": "#/$defs/session" }
-		    }
-		  }
-		 },
-		 "continue": {
-		  "type": "object",
-		  "properties": {
-				"kind": { "const": "continue" },
-				"name": { "type": "string" }
-		  }
-	   }
-   }
+          "items": { "$ref": "#/$defs/session" }
+        }
+      }
+    },
+    "required": ["kind", "at", "options"],
+    "additionalProperties": false
+  },
+
+  "rec": {
+    "type": "object",
+    "properties": {
+      "kind": { "const": "rec" },
+      "name": { "type": "string", "not": { "$ref": "#/$defs/forbiddenNames" } },
+      "body": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/session" }
+      }
+    },
+    "required": ["kind", "name", "body"],
+    "additionalProperties": false
+  },
+
+  "continue": {
+    "type": "object",
+    "properties": {
+      "kind": { "const": "continue" },
+      "name": { "type": "string" }
+    },
+    "required": ["kind", "name"],
+    "additionalProperties": false
   }
+}
+
+}
 ''')
 
 # debug/test

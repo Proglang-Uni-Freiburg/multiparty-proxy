@@ -61,7 +61,9 @@ async def createMeetingReq(meeting: Meeting, request: Request):
 
     # check if JSON protocol is validated with schema
     current_json = await request.json() # get protocol as JSON
+    print(f"check protocol with json: {check_json_protocol(current_json, protocol_schema)}")
     if check_json_protocol(current_json, protocol_schema) == False:
+        print("failed schema")
         return Response(status_code=status.HTTP_400_BAD_REQUEST, content=f"Invalid protocol")
     
     # zero: define types

@@ -183,7 +183,7 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_s
     # handle ok disconnections
     except (websockets.ConnectionClosed, websockets.ConnectionClosedError, websockets.ConnectionClosedOK):
         print(f"An error has been encountered in {actor_name} and its connection was closed.")
-    except (SchemaValidationError) as e: # TODO: raise inside handler
+    except (SchemaValidationError) as e:
         print(f"Type mismatch {e} in {actor_name}. Actor dsiconnected.")
     except Exception as e:
         print(f"Unexpected error in proxy: {e}")
@@ -206,9 +206,7 @@ async def main_proxy(proxy_port:int, actors_complete:list[tuple[str, str]], prot
     if not os.path.exists(f'proxy/protocols/{protocol_name}'):
         os.makedirs(f'proxy/protocols/{protocol_name}')
     with open(f'proxy/protocols/{protocol_name}/{proxy_port}_log.txt', 'w', buffering=1) as file: # meetingName_port
-        # sys.stdout = file  # Redirect output to file
         # for logging
-        # orig_out, orig_err = sys.stdout, sys.stderr
         sys.stdout = sys.stderr = file
 
         print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
