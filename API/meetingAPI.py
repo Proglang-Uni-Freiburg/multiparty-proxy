@@ -16,7 +16,7 @@ import os
 from tools.get_port import get_free_port # for finding a free port for the proxy
 from tools.json_to_scribble import json_to_scribble_func
 from scribble_python.wf_checker import check_well_formedness, WellFormednessError # check Scribble protocol
-from proxy.session_logic.type_validation import create_type_checker # for payload type schemas
+from proxy.session_logic.type_validation import create_type_checker, protocol_schema, check_json_protocol# for type schemas
 
 # proxy imports
 import threading # for handling several proxies
@@ -59,6 +59,11 @@ async def createMeetingReq(meeting: Meeting, request: Request):
         if meeting.error not in ("fatal", "ignore", "handle"):
             raise HTTPException(status_code=422, detail="Error must be 'ignore', 'fatal' or 'handle'")
 
+    # check if JSON protocol is validated with schema
+    current_json = await request.json() # get protocol as JSON
+    if check_json_protocol(current_json, protocol_schema) == False:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST, content=f"Invalid protocol")
+    
     # zero: define types
     print(f"defning meeting protocol: {meeting.protocol}") # debug
     schemas: list[Any]
@@ -71,13 +76,12 @@ async def createMeetingReq(meeting: Meeting, request: Request):
     types = create_type_checker(schemas) # all type schemas we'll need for types in protocol
 
     # one: transform to scr
-    current_json = await request.json()
     json_to_scribble_func(path="API/protocols", proto=current_json, schemas=types) # TODO: add try block
     # join dicts of schemas of builtin and custom types into one dict
     merged_types = types[0].copy()
     merged_types.update(types[1])
 
-    # two: check if protocol is well-formed
+    # two: check if protocol is well-formed according to Scribble standards
     try:
         check_well_formedness(f"API/protocols/{meeting.protocol}.scr")
     except WellFormednessError as e:

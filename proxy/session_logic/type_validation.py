@@ -63,6 +63,103 @@ def check_payload(msg:Any, expected:str, schema_dict:dict[str, Any]) -> bool:
         print(f"Something went wrong with the type validation {e}")
         raise e
 
+def check_json_protocol(proto:Any, proto_schema:Any)->bool:
+    try:
+        jsonschema.validate(instance=proto, schema=proto_schema)
+        return True
+    except jsonschema.ValidationError:
+        return False
+
+
+# schema of protocol definition
+protocol_schema = json.loads(r'''{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://something.com/scribble.protocol.schema.json",
+  "title": "Protocol",
+  "description": "A Scribble protocol described as a JSON object",
+  "type": "object",
+  "properties": {
+     "protocol": { "type": "string" },
+	   "roles": {
+		   "type": "array",
+       "items": {
+			   "type": "object",
+	        "required": ["name", "alias"],
+	        "properties": {
+	          "name":  { "type": "string" },
+	          "alias": { "type": "string" }
+	        }
+	      }
+	   },
+     "error": {
+			"type": "string",
+			"enum": ["fatal", "ignore", "handle"]
+		 },
+     "timeout": { "type": "integer" },
+     "body": {
+	     "type": "array",
+       "items": { "$ref": "#/$defs/session" }
+	   }
+  },  
+  "required": [ "roles", "body" ],
+  "additionalProperties": false,
+  "$defs": {
+	  "forbiddenNames": { "enum": ["timeout", "error", "wrongPayload", "wrongLabel"] },
+    "session": {
+	    "type": "object",
+	    "oneOf": [
+		    { "$ref": "#/$defs/message" },
+		    { "$ref": "#/$defs/rec" },
+		    { "$ref": "#/$defs/continue" },
+		    { "$ref": "#/$defs/choice" }
+		  ]
+    },
+    "message": {
+		  "type": "object",
+		  "properties": {
+				"kind": { "const": "message" },
+				"name": { "type": "string", "not": { "$ref": "#/$defs/forbiddenNames" } },
+				"from": { "type": "string" },
+				"to": { "type": "string" },
+				"payload": { "type": "string" }
+		  }
+	  },
+	  "choice": {
+		  "type": "object",
+		  "properties": {
+				"kind": { "const": "choice" },
+				"at": { "type": "string" },
+				 "options": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/session" }
+          }
+         }
+       }
+		 },
+		 "rec": {
+		  "type": "object",
+		  "properties": {
+				"kind": { "const": "rec" },
+				"name": { "type": "string", "not": { "$ref": "#/$defs/forbiddenNames" } },
+				"body": {
+		      "type": "array",
+		      "items": { "$ref": "#/$defs/session" }
+		    }
+		  }
+		 },
+		 "continue": {
+		  "type": "object",
+		  "properties": {
+				"kind": { "const": "continue" },
+				"name": { "type": "string" }
+		  }
+	   }
+   }
+  }
+''')
+
 # debug/test
 """
 if __name__ == "__main__":

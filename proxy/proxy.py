@@ -21,6 +21,9 @@ import httpx # for sending API requests
 import os
 from typing import Optional
 
+import builtins, functools
+print = functools.partial(builtins.print, flush=True)
+
 # -- queues for sending/receiving messages in sessions ------------------------------------------------------------------
 async def receiving_queue(actor: str, ws:WebSocketServerProtocol,
                       queue: asyncio.Queue[Any]):
@@ -182,8 +185,6 @@ async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_s
         print(f"An error has been encountered in {actor_name} and its connection was closed.")
     except (SchemaValidationError) as e: # TODO: raise inside handler
         print(f"Type mismatch {e} in {actor_name}. Actor dsiconnected.")
-    # except TimeoutError as e: # TODO: implement later
-        # print(f"{e}")
     except Exception as e:
         print(f"Unexpected error in proxy: {e}")
     finally:
@@ -204,58 +205,61 @@ async def main_proxy(proxy_port:int, actors_complete:list[tuple[str, str]], prot
     # redirect print statements to logging file
     if not os.path.exists(f'proxy/protocols/{protocol_name}'):
         os.makedirs(f'proxy/protocols/{protocol_name}')
-    # with open(f'proxy/protocols/{protocol_name}/{proxy_port}_log.txt', 'w') as file: # meetingName_port
+    with open(f'proxy/protocols/{protocol_name}/{proxy_port}_log.txt', 'w', buffering=1) as file: # meetingName_port
         # sys.stdout = file  # Redirect output to file
+        # for logging
+        # orig_out, orig_err = sys.stdout, sys.stderr
+        sys.stdout = sys.stderr = file
 
-    print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
-    # separate actors and aliases
-    actors = [elem[0] for elem in actors_complete]
-    aliases = [elem[1] for elem in actors_complete]
-    project_actors(actors, protocol_name) # make necessary projections
-    # create dict for sockets
-    actor_slots: dict[str, Optional[WebSocketServerProtocol]] = {} # initialize dict
-    actor_slots = {actor: None for actor in actors} # initialize connections list
-    # create necessary queues and tasks
-    incoming_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # from actor
-    outgoing_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # to actor
-    recv_tasks: dict[str, asyncio.Task[Any]|None] = {alias: None for alias in aliases} # dict of alias <-> receiving queue tasks, to cancel them if necessary from another actor's handler
-    
-    # start necessary events
-    all_joined_evt = asyncio.Event() # will be fired when all actors have joined
-    all_done_evt   = asyncio.Event() # will be fired when all actors are disconnected
+        print(f"Starting proxy for protocol {protocol_name} in port {proxy_port}...")
+        # separate actors and aliases
+        actors = [elem[0] for elem in actors_complete]
+        aliases = [elem[1] for elem in actors_complete]
+        project_actors(actors, protocol_name) # make necessary projections
+        # create dict for sockets
+        actor_slots: dict[str, Optional[WebSocketServerProtocol]] = {} # initialize dict
+        actor_slots = {actor: None for actor in actors} # initialize connections list
+        # create necessary queues and tasks
+        incoming_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # from actor
+        outgoing_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # to actor
+        recv_tasks: dict[str, asyncio.Task[Any]|None] = {alias: None for alias in aliases} # dict of alias <-> receiving queue tasks, to cancel them if necessary from another actor's handler
 
-    # wait for actors to join
-    print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
-    async with serve(
-        lambda ws,
-        path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues,
-                                       outgoing_queues, types, all_joined_evt, all_done_evt, recv_tasks,
-                                       error_mode, timeout),
-        host="localhost",
-        port=proxy_port,
-        ping_interval=None, # pings desabled, will manually check timeout on sends and recvs
-        ping_timeout=None
-    ):
-        try: 
-            # once all actors are joined
-            await all_joined_evt.wait()
-            print("All actors connected. Starting the meeting...")
-            # await asyncio.Future() # so that server doesn't close
-            # close proxy gracefullly
-            await all_done_evt.wait() # close proxy once all actors are disconnected
-            print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")
-            await asyncio.sleep(5) # for debug purposes
+        # start necessary events
+        all_joined_evt = asyncio.Event() # will be fired when all actors have joined
+        all_done_evt   = asyncio.Event() # will be fired when all actors are disconnected
 
-            # close meeting properly by sending a delete request to the API
-            async with httpx.AsyncClient() as client:
-                resp = await client.delete(f"http://localhost:8000/meetings/{protocol_name}")
-                if resp.status_code == 200:
-                    print(f"Successfully deleted meeting {protocol_name} from API")
-                else:
-                    print(f"Failed to delete meeting {protocol_name}: {resp.status_code} {resp.text}")
+        # wait for actors to join
+        print(f"In meeting {protocol_name}: waiting for all actors to join...") # debug
+        async with serve(
+            lambda ws,
+            path: actor_handler(ws, path, actor_slots, actors_complete, protocol_name, incoming_queues,
+                                            outgoing_queues, types, all_joined_evt, all_done_evt, recv_tasks,
+                                            error_mode, timeout),
+            host="localhost",
+            port=proxy_port,
+            ping_interval=None, # pings desabled, will manually check timeout on sends and recvs
+            ping_timeout=None
+        ):
+            try: 
+                # once all actors are joined
+                await all_joined_evt.wait()
+                print("All actors connected. Starting the meeting...")
+                # await asyncio.Future() # so that server doesn't close
+                # close proxy gracefullly
+                await all_done_evt.wait() # close proxy once all actors are disconnected
+                print("All actors have disconnected from the meeting. Deleting meeting and shutting down proxy...")
+                await asyncio.sleep(5) # for debug purposes
 
-            print("Stopped serving") # debug
-        except Exception as e:
-            print(f"proxy exception: {e}")
-        # sys.stdout = sys.__stdout__  # close logging?; TODO: double check
+                # close meeting properly by sending a delete request to the API
+                async with httpx.AsyncClient() as client:
+                    resp = await client.delete(f"http://localhost:8000/meetings/{protocol_name}")
+                    if resp.status_code == 200:
+                        print(f"Successfully deleted meeting {protocol_name} from API")
+                    else:
+                        print(f"Failed to delete meeting {protocol_name}: {resp.status_code} {resp.text}")
+
+                print("Stopped serving") # debug
+            except Exception as e:
+                print(f"proxy exception: {e}")
+        sys.stdout = sys.__stdout__
         return
