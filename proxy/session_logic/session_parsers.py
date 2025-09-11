@@ -79,7 +79,7 @@ def scr_into_session(path_to_scr:str, error_mode:str) -> Session:
                         branch = doing[-1][1]
 
                         # If we’ve never set alternatives at all, start with one empty branch
-                        if choice.alternatives == []: # if it's empty; TODO: check if it works
+                        if choice.alternatives == []: # if it's empty
                             choice.alternatives = []
 
                         # If this branch index is beyond current length, extend with empty lists

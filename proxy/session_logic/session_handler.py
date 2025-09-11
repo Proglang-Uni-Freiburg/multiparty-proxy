@@ -174,7 +174,7 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                         else:
                             choice_idx = json.loads(await send_queues[name].get()) # branch will be waiting in queue, will be an index 
                             doing.append(actual_session) # mark that you're carrying out choice session
-                            print(f"{name} choice_idx = {choice_idx}") # TODO: erase
+                            print(f"{name} choice_idx = {choice_idx}")
                             # if you branched to a choice, then send label to actor later (because you won't know until after)
                             # but if you branched to message or rec, send name of THOSE to actor! 
                             socket = actor_list[name]
