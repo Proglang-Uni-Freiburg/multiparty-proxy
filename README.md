@@ -13,8 +13,7 @@ A proxy for multiparty session-typed communication
 
 ## sending requests
 1) start the API by executing the start_api.bat file or carrying out the command: "python -m uvicorn API.meetingAPI:app --reload" from the project directory
-2) to send requests, follow the specification as described in the document* along with your preferred method to send API requests (base URL: http://127.0.0.1:8000/), or go to "" in your browser
-   to see a thorough explanation of the endpoints and send the requests from there.
+2) to send requests, follow the specification as described in the document* along with your preferred method to send API requests (base URL: http://127.0.0.1:8000/), or go to "http://127.0.0.1:8000/docs" on your browser to see a thorough explanation of the endpoints and send the requests from there.
 3) once a meeting is defined through the request, the port of the proxy the clients operating with a websockets client protocol is given.
 
 ## where information is
