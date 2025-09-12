@@ -26,6 +26,7 @@ A proxy for multiparty session-typed communication, based on Scribble protocols.
 Note: the examples are very basic, so please write all input exactly as instructed, otherwise code might not work.
 
 In all examples, there are two options:
+
 a) run "python [example.py]", which will automatically send API requests and open a window for each client
 
 b) send the necessary requests yourself and then open the required client python codes with the given port number (e.g. "python -m producer -p [port_number]")
