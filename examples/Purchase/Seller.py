@@ -13,7 +13,7 @@ import json
 import argparse
 
  
-async def ws_client(port):
+async def ws_client(port:int):
     '''
     Handles connection and sends and receives payloads according to interaction with user.
     '''
@@ -60,6 +60,9 @@ async def ws_client(port):
                     print("The user has been authenticated")
                 case False:
                     print("The user has not been authenticated. Proceed with caution.")
+                case _:
+                    print("Invalid choice from another actor.")
+                    raise
             choice_b = json.loads(await ws.recv())
             match choice_b:
                 case "req":
@@ -79,6 +82,9 @@ async def ws_client(port):
                     await ws.send(json.dumps(location))
                 case "quit":
                     await ws.recv()
+                case _:
+                    print("Invalid choice from another actor.")
+                    raise
 
 
     except websockets.exceptions.ConnectionClosed:

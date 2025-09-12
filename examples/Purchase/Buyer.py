@@ -13,7 +13,7 @@ import json
 import argparse
 
  
-async def ws_client(port):
+async def ws_client(port:int):
     '''
     Handles connection and sends and receives payloads according to interaction with user.
     '''
@@ -37,6 +37,9 @@ async def ws_client(port):
                     print(f"Welcome {login}!")
                 case False:
                     print("Your username is incorrect or it does not have the necessary permissions to access the system.")
+                case _:
+                    print("Invalid choice from another actor.")
+                    raise
             choice_b = input("Please choose one of the following options:\n Price (to ask the price of a product)" \
                             "\n Buy (to buy a product)"
                             "\n Quit (to leave the session)"
@@ -61,6 +64,9 @@ async def ws_client(port):
                     await ws.send(json.dumps("quit"))
                     await ws.send(json.dumps(None))
                     print("Goodbye!")
+                case _:
+                    print("Invalid choice from another actor.")
+                    raise
 
 
     except websockets.exceptions.ConnectionClosed:

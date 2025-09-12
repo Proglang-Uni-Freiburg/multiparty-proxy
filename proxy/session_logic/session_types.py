@@ -91,7 +91,7 @@ class Choice(Session):
 
 @dataclass
 class Rec(Session):
-    def __init__(self, label:Label, actions: list[Session], cont:Session|None): # should Label be there? How to label?
+    def __init__(self, label:Label, actions: list[Session], cont:Session|None):
         super().__init__("rec") # kind
         self.label = label
         self.actions = actions
@@ -104,7 +104,7 @@ class Rec(Session):
         This does not apply to the last one, that need to remain as a None; that way we know we have to go back to
         close the Rec session and go to its cont.
         """
-        for i in range(0, len(self.actions) - 1): # is -1 ok?
+        for i in range(0, len(self.actions) - 1):
             elem = self.actions[i]
             if isinstance(elem, (Rec, Message, Choice)): # so if not Ref or End
                 elem.cont = self.actions[i+1]
