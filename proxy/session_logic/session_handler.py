@@ -16,8 +16,21 @@ import json
 import asyncio # for timeouts
 
 
+# -- helpers for defining actor also in sending queues ---------------
+async def out_put(outgoing_queues: dict[str, dict[str, asyncio.Queue[Any]]],
+                  recipient: str, sender: str, msg: Any) -> None:
+    q = outgoing_queues[recipient].setdefault(sender, asyncio.Queue())
+    await q.put(msg)
+
+async def out_get(outgoing_queues: dict[str, dict[str, asyncio.Queue[Any]]],
+                  recipient: str, sender: str) -> Any:
+    q = outgoing_queues[recipient].setdefault(sender, asyncio.Queue())
+    return await q.get()
+
+# -- session handler --------------------------------------------------------------------------------------------------------------------------------------
+
 async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketServerProtocol|None], recv_queues:dict[str, asyncio.Queue[Any]],
-                         send_queues:dict[str, asyncio.Queue[Any]], types:dict[str, Any], error_mode:str, timeout:float) -> End:
+                         send_queues:dict[str, dict[str, asyncio.Queue[Any]]], types:dict[str, Any], error_mode:str, timeout:float) -> End:
     '''
     Function that receives a session related to an actor, and checks said actor is going through the series of
     sessions as defined by the protocol.
@@ -56,7 +69,7 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                     match (actual_session.dir.dir):
                         case ("from"): # receive message from someone else
                             try:
-                                msg = await send_queues[name].get()  # get message from queue
+                                msg = await out_get(send_queues, name, actual_session.actor) # msg = await send_queues[name].get()  # get message from queue
 
                                 ok_payload = check_payload(msg, actual_session.payload, types)
                                 print(f"Payload validation for {name}, {actual_session.label}, direction 'to': {ok_payload}") # debug
@@ -111,7 +124,7 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                                     elif error_mode == "handle" and not error: # set error if mode is not "ignore"
                                         error = "wrongPayload"
                                 
-                                await send_queues[actual_session.actor].put(msg)  # queue message for recipient (so we can send it to it when it is ready)
+                                await out_put(send_queues, actual_session.actor, name, msg) # await send_queues[actual_session.actor].put(msg)  # queue message for recipient (so we can send it to it when it is ready)
                                 print(f"Message sent by {name} to {actual_session.actor}") # debug
                             except (SchemaValidationError, Timeout, WrongLabelError) as e:
                                 print(f"In {name}, fatal: {e}")
@@ -165,12 +178,12 @@ async def handle_session(name:str, ses:Session, actor_list:dict[str, WebSocketSe
                                             if elem.label.label == branch:
                                                 choice_idx = i
                                                 break
-                                    await send_queues[act].put(json.dumps(choice_idx))     
+                                    await out_put(send_queues, act, name, json.dumps(choice_idx)) # await send_queues[act].put(json.dumps(choice_idx))     
                             doing.append(actual_session) # mark that you're carrying out choice session
 
                         # case 2: this actor RECEIVES a branch index
                         else:
-                            choice_idx = json.loads(await send_queues[name].get()) # branch will be waiting in queue, will be an index 
+                            choice_idx = json.loads(await out_get(send_queues, name, actual_session.actor)) # choice_idx = json.loads(await send_queues[name].get()) # branch will be waiting in queue, will be an index 
                             doing.append(actual_session) # mark that you're carrying out choice session
                             print(f"{name} choice branch index = {choice_idx}")
                             # if you branched to a choice, then send index to actor later (because you won't know until after)

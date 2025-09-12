@@ -42,7 +42,8 @@ async def receiving_queue(actor: str, ws:WebSocketServerProtocol,
         print(f"Problem with receiving queue for {actor}: {e}")
 
 async def sending_queue(actor: str,
-                      queue: asyncio.Queue[Any]):
+                      queues_for_actor: dict[str, asyncio.Queue[Any]],
+                      sender: str):
     '''
     Creates and enables access to a queue where all messages to be sent to the actor are stored.
 
@@ -53,10 +54,13 @@ async def sending_queue(actor: str,
             queue(asyncio.Queue[Any]): queue object with which messages are stored
     '''
     try:
+        q = queues_for_actor.setdefault(sender, asyncio.Queue())
         while True:
-            await queue.get()
+            await q.get()
     except Exception as e:
         print(f"Problem with sending queue for {actor}: {e}")
+
+
 
 
 # -- actor logic for a meeting -------------------------------------------------------------------------------------------
@@ -79,7 +83,7 @@ def project_actors(actors:list[str], protocol_name: str):
 
 async def actor_handler(clientSocket: WebSocketServerProtocol, path:str, actor_slots:dict[str, WebSocketServerProtocol|None],
                         actors_complete:list[tuple[str, str]], protocol_name:str, incoming_queues:dict[str, asyncio.Queue[Any]],
-                        outgoing_queues:dict[str, asyncio.Queue[Any]], types:dict[str, Any], all_connected_evt: asyncio.Event,
+                        outgoing_queues:dict[str, dict[str, asyncio.Queue[Any]]], types:dict[str, Any], all_connected_evt: asyncio.Event,
                         all_done_evt: asyncio.Event, recv_tasks_dict:dict[str, asyncio.Task[Any]|None], error_mode:str, timeout:float):
     '''
     When a socket connects to proxy, check if they want to connect as an actor in the meeting, then initialize and handle a session for said actor.
@@ -220,7 +224,7 @@ async def main_proxy(proxy_port:int, actors_complete:list[tuple[str, str]], prot
         actor_slots = {actor: None for actor in actors} # initialize connections list
         # create necessary queues and tasks
         incoming_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # from actor
-        outgoing_queues:dict[str, asyncio.Queue[Any]] = { alias: asyncio.Queue() for alias in aliases } # to actor
+        outgoing_queues: dict[str, dict[str, asyncio.Queue[Any]]] = { alias: {} for alias in aliases } # to actor # to actor
         recv_tasks: dict[str, asyncio.Task[Any]|None] = {alias: None for alias in aliases} # dict of alias <-> receiving queue tasks, to cancel them if necessary from another actor's handler
 
         # start necessary events
