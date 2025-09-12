@@ -27,11 +27,13 @@ Note: the examples are very basic, so please write all input exactly as instruct
 
 In all examples, there are two options:
 a) run "python [example.py]", which will automatically send API requests and open a window for each client
+
 b) send the necessary requests yourself and then open the required client python codes with the given port number (e.g. "python -m producer -p [port_number]")
 
 ### Negotiate
 
 a) For a correct usage: run the negotiate_ok.py script and follow the instructions in the opened customer and producer windows
+
 b) To see how a fatal timeout error is carried out: run negotiate_timesout.py and wait for timeout
 
 ### Purchase
@@ -50,4 +52,7 @@ For products, the options are:
 
 ## BookJourney
 a) For a correct usage: run the bookJourney_ok.py script and follow the instructions in each client windwow
+
 b) To see how a handled wrongError branch is carried out: run bookJourney_wrong.py . There will be a payload error the first time around, but the second iteration sends the right one.
+
+
