@@ -2,14 +2,12 @@
 A proxy for multiparty session-typed communication, based on Scribble protocols. The communication takes place through websockets.
 
 ## prerequistes:
-* python 3
+* python3 (version of python used during testing: 3.11.5)
 * windows computer (some functionalities might work in other opertating systems but it hasn't been tried)
-* the following python libraries:
-    * uvicorn
-    * fastAPI
-    * websockets
-    
-* not required but would be very helpful: have your python be executable from the command prompt when carrying out the "python" command.
+* install the required libraries stated in requirements.txt into the python environment
+* install the antlr3.1.3 library from this repo: https://github.com/altigee/antlr-python3-runtime-3.1.3/tree/master into the python environment
+  
+* not required but would be very helpful: have your python3 be executable from the command prompt when carrying out the "python" command.
 
 ## sending requests
 1) start the API by executing the start_api.bat file or carrying out the command: "python -m uvicorn API.meetingAPI:app --reload" from the project directory
